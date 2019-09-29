@@ -122,3 +122,10 @@ live2d:
   react:
     opacity: 0.7
 ```
+
+# 最后同步到自己的github
+1. 先是在 github 创建仓库
+2. 在本地 init
+3. `git remote add <仓库名字> <仓库地址>`
+4. `git checkout -b <新的分支>`
+5. `git push <仓库名字> <新的分支>`
