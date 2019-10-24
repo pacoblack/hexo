@@ -6,6 +6,7 @@
     "version": "3.9.0"
   },
   "dependencies": {
+    "axios": "^0.19.0",
     "hexo": "^3.9.0",
     "hexo-asset-image": "^1.0.0",
     "hexo-deployer-git": "^2.0.0",
@@ -20,6 +21,7 @@
     "hexo-server": "^0.3.3",
     "hexo-tag-aplayer": "^3.0.4",
     "hexo-tag-dplayer": "^0.3.3",
-    "live2d-widget-model-epsilon2_1": "^1.0.5"
+    "live2d-widget-model-epsilon2_1": "^1.0.5",
+    "mem": "^5.1.1"
   }
 }
