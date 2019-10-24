@@ -3,7 +3,9 @@ title: video
 toc: true
 date: 2019-09-30 10:35:36
 tags:
+- 教程
 categories:
+- 教程
 ---
 [hexo-tag-aplayer 项目](https://github.com/MoePlayer/hexo-tag-aplayer)
 [hexo-tag-dplayer 项目](https://github.com/MoePlayer/hexo-tag-dplayer)
