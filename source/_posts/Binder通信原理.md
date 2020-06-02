@@ -6,7 +6,7 @@ tags:
 - Android
 categories:
 - Android
-- 基本原理
+- 原理
 ---
 
 # 介绍
