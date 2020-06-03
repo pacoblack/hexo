@@ -872,6 +872,5 @@ status_t InputConsumer::consume(InputEventFactoryInterface* factory,
 
 ![TouchEvent传递](touchEvent.jpg)
 
-
 参考：
 https://segmentfault.com/a/1190000011826846
