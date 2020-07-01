@@ -91,5 +91,6 @@ Widget 可以是一行文本、一张图片、一个颜色，所有都是 Widget
 # 总结
 
 Flutter 是会根据ios和安卓编译生成不同的执行文件，android是生成一个flutter.jar。
-以安卓为例，flutter的启动也是依赖原生的application来启动，并同时生成四个线程，四个线程的通信与Android原生的Handler通信类似，也是发送消息，不过在底层就有两个队列的区别，另外线程见与原生不同，不能直接通信，需要一个共享内存，这个共享内存位于flutter 引擎，记录不同线程的 sendPort 和 receivePort，每个port对应一个 MessageHandler，发送的消息会封装成一个MessageTask 发送到另一个Handler，接收端的Handler 把MessageTask 交给 自己的isolate中的 worker 处理。
-创建完线程需要对UI渲染，GPU发送渲染信号，在UI线程中 从 WidgetTree 到 ElementTree 生成 RenderObject，接着布局、绘制，最终生成 LayerTree，接着给 GPU线程发送消息，进行Skia渲染
+以安卓为例，flutter的启动也是依赖原生的application来启动，并同时生成四个线程，四个线程的通信与Android原生的Handler通信类似，也是发送消息，区别在于另外三个线程公用两个队列，另外进程间通信与原生不同，不能直接通信，需要一个共享内存，这个共享内存位于flutter 引擎，记录不同线程的 sendPort 和 receivePort，每个port对应一个 MessageHandler，发送的消息会封装成一个MessageTask 发送到另一个Handler，接收端的Handler 把MessageTask 交给 自己的isolate中的 worker 处理。
+创建完线程需要对UI渲染，GPU发送渲染信号，在UI线程中 从 WidgetTree 将变化更新到Element中去生成 ElementTree 生成 RenderObject，接着布局、绘制，最终生成 LayerTree，接着给 GPU线程发送消息，进行Skia渲染
+不同的平台可以通过MethodChannel实现不同平台的原生与flutter通信
