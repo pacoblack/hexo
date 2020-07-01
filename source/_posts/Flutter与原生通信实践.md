@@ -19,7 +19,7 @@ Flutter与原生之间的通信依赖灵活的消息传递方式：
 - 应用的Flutter部分通过平台通道（platform channel）将消息发送到其应用程序的所在的宿主（iOS或Android）应用（原生应用）。
 - 宿主监听平台通道，并接收该消息。然后它会调用该平台的API，并将响应发送回客户端，即应用程序的Flutter部分。
 
-![Flutter通信](https://upload-images.jianshu.io/upload_images/4511172-e39a4d2cc43de609.png?imageMogr2/auto-orient/)
+![Flutter通信](https://resource.shangmayuan.com/droxy-blog/2019/11/06/3ba6c6e4f1fe4e0b8e0aabb89a966e53-1.jpg)
 
 当在Flutter中调用原生方法时，调用信息通过**平台通道**传递到原生，原生收到调用信息后方可执行指定的操作，如需返回数据，则原生会将数据再通过**平台通道**传递给Flutter。值得注意的是**消息传递是异步的**，这确保了用户界面在消息传递时不会被挂起。
 
