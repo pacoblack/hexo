@@ -20,6 +20,16 @@ categories:
 
 上面是用 Dart 写的 APP，下面有 DartFramework，Framework 里有安卓和 iOS 的主体，里面有很多动画等等。再往下会调到引擎，引擎里有消息、PlatformChannel、Dart VM 等，引擎层再到平台。
 
+>一个FlutterView对应一个FlutterEngine实例；
+一个FlutterEngine实例对应一个Dart Isolate实例；
+同一个进程只有且仅有一个Dart VM虚拟机；
+一个Dart VM上会存在多个Dart Isolate实例，Isolate是dart代码的执行环境；
+
+# 编译框架
+![flutter编译结构](flutter4.jpg)
+
+Dart 代码最上用前端编译器编译，下面左边绿色的是安卓，右边蓝色的是 iOS，根据不同的平台会产生不同的产物。
+
 # 进程框架
 ![启动框架](flutter3.jpg)
 
@@ -52,11 +62,6 @@ IO Runner的主要功能是从图片存储（比如磁盘）中读取压缩的�
 
 IO Runner直接决定了图片和其它一些资源加载的延迟间接影响性能。所以建议为IO Runner创建一个专用的线程。
 
-# 编译框架
-![flutter编译结构](flutter4.jpg)
-
-Dart 代码最上用前端编译器编译，下面左边绿色的是安卓，右边蓝色的是 iOS，根据不同的平台会产生不同的产物。
-
 # 线程框架
 ![线程通信](flutter5.jpg)
 
@@ -66,6 +71,73 @@ Dart 代码最上用前端编译器编译，下面左边绿色的是安卓，右
 ![Dart虚拟机](flutter6.jpg)
 
 同一个进程里可以有很多 Isolate，两个 Isolate 的堆是不能共享的，但它们也可以交互。在 Dart 虚拟机里面也有一个特殊 Isolate，是运行在 UI 线程中，和 Root Isolate 是运行在一个线程的。当两个 Isolate 要通信，会找一个共同的可访问的内存。
+
+![isolate](isolate.jpg)
+```dart
+//在父Isolate中调用
+Isolate isolate;
+start() async {
+  ReceivePort receivePort = ReceivePort();
+  //创建子Isolate对象
+  isolate = await Isolate.spawn(getMsg, receivePort.sendPort);
+  //监听子Isolate的返回数据
+  receivePort.listen((data) {
+    print('data：$data');
+    receivePort.close();
+    //关闭Isolate对象
+    isolate?.kill(priority: Isolate.immediate);
+    isolate = null;
+  });
+}
+//子Isolate对象的入口函数，可以在该函数中做耗时操作
+getMsg(sendPort) => sendPort.send("hello");
+```
+创建Isolate时会将其中的MessageHandler对象添加到一个全局的map，（在Dart VM初始化的时候创建，每个元素都是一个Entry对象，在Entry中，有一个MessageHandler对象，一个端口号及该端口的状态。），接着创建 ReceivePort 对象，ReceivePort对应着Dart SDK中的_RawReceivePortImpl对象，SendPort对应着Dart SDK中的_SendPortImpl对象。当ReceivePort创建成功后，就可以通过调用_SendPortImpl的send函数来发送消息。send 发送消息时，将消息加入到了目标Isolate的MessageHandler中，
+在PostMessage中主要是做了以下操作
+1. 根据消息级别将消息加入到不同的队列中。主要有OOB消息及普通消息两个级别，OOB消息在队列oob_queue_中，普通消息在队列queue_中。OOB消息级别高于普通消息，会立即处理。
+2. 将一个消息处理任务MessageHandlerTask加入到线程中。
+
+普通消息的处理
+1. 首先调用Dart SDK中_RawReceivePortImpl对象的_lookupHandler函数，返回一个在创建_RawReceivePortImpl对象时注册的一个自定义函数。
+2. 调用Dart SDK中_RawReceivePortImpl对象的_handleMessage函数并传入1中返回的自定义函数，通过该自定义函数将消息分发出去
+
+双向通信也很简单，在父Isolate中创建一个端口，并在创建子Isolate时，将这个端口传递给子Isolate。然后在子Isolate调用其入口函数时也创建一个新端口，并通过父Isolate传递过来的端口把子Isolate创建的端口传递给父Isolate，这样父Isolate与子Isolate分别拥有对方的一个端口号，从而实现了通信
+```dart
+//当前函数在父Isolate中
+Future<dynamic> asyncFactoriali(n) async {
+  //父Isolate对应的ReceivePort对象
+  final response = ReceivePort();
+  //创建一个子Isolate对象
+  await Isolate.spawn(_isolate, response.sendPort);
+  final sendPort = await response.first as SendPort;
+  final answer = ReceivePort();
+  //给子Isolate发送数据
+  sendPort.send([n, answer.sendPort]);
+  return answer.first;
+}
+
+//子Isolate的入口函数，可以在该函数中做耗时操作
+//_isolate必须是顶级函数（不能存在任何类中）或者是静态函数（可以存在类中）
+_isolate(SendPort initialReplyTo) async {
+  //子Isolate对应的ReceivePort对象
+  final port = ReceivePort();
+  initialReplyTo.send(port.sendPort);
+  final message = await port.first as List;
+  final data = message[0] as int;
+  final send = message[1] as SendPort;
+  //给父Isolate的返回数据
+  send.send(syncFactorial(data));
+}
+
+//运行代码
+start() async {
+  print("计算结果：${await asyncFactoriali(4)}");
+}
+start();
+```
+
+![过程图](sendMsg.jpg)
+[原文](https://juejin.im/post/5e149a7df265da5d3b32e167#heading-6)
 
 Isolate1 和 Isolate2 通信是在 Isolate2 里创一个 ReceivePort，在 Isolate1 中调用其对应的 SendPort 的 send 方法，在引擎 PortMap 里面有映射表，每一个 port 端口对应一个相应 Isolate 的 MessageHandler，该 Handler 里面有两个队列，一个是普通的消息队列，一个是 OOB 高优先级消息，根据优先级把它放到相应消息队列。再把这个 **事件封装成一个 MessageTask，抛到另外一个 Isolate 里去**，我们一般创建一个 Isolate，它里面是一个 worker 线程，worker 线程放入一个新的 Task，它就会最终去执行这个 Task
 

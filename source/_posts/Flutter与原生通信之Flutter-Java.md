@@ -387,5 +387,7 @@ bool RegisterApi(JNIEnv* env) {
   ......  
 }
 ```
-不难看出`g_flutter_jni_class`指向FlutterJNI.java类,`g_handle_platform_message_method`指向FlutterJN.javaI中的`handlePlatformMessage()`方法.
-![image](https://upload-images.jianshu.io/upload_images/16327616-db7434d1d99c2b42?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+不难看出 `g_flutter_jni_class` 指向FlutterJNI.java类, `g_handle_platform_message_method` 指向FlutterJN.javaI中的 `handlePlatformMessage()` 方法.
+![image](http://gityuan.com/img/method_channel/MethodChannel.jpg)
+FlutterViewHandlePlatformMessage()方法会调用到Java层的FlutterJNI.handlePlatformMessage()方法。接下来是返回参数
+![image](http://gityuan.com/img/method_channel/ChannelReply.jpg)
