@@ -254,5 +254,115 @@ private void unparkSuccessor(Node node) {
 ```
 释放锁主要是将头节点的后继节点唤醒，如果后继节点不符合唤醒条件，则从队尾一直往前找，直到找到符合条件的节点为止。
 
+## 共享锁
+### 获取锁
+```java
+public final void acquireShared(int arg) {
+  // 尝试获取共享锁，小于0表示获取失败
+  if (tryAcquireShared(arg) < 0)
+    // 执行获取锁失败的逻辑
+    doAcquireShared(arg);
+}
+
+private void doAcquireShared(int arg) {
+  // 添加共享锁类型节点到队列中
+  final Node node = addWaiter(Node.SHARED);
+  boolean failed = true;
+  try {
+    boolean interrupted = false;
+    for (;;) {
+      final Node p = node.predecessor();
+      if (p == head) {
+        // 再次尝试获取共享锁
+        int r = tryAcquireShared(arg);
+        // 如果在这里成功获取共享锁，会进入共享锁唤醒逻辑
+        if (r >= 0) {
+          // 共享锁唤醒逻辑
+          setHeadAndPropagate(node, r);
+          p.next = null; // help GC
+          if (interrupted)
+            selfInterrupt();
+          failed = false;
+          return;
+        }
+      }
+      // 与独占锁相同的挂起逻辑
+      if (shouldParkAfterFailedAcquire(p, node) &&
+          parkAndCheckInterrupt())
+        interrupted = true;
+    }
+  } finally {
+    if (failed)
+      cancelAcquire(node);
+  }
+}
+```
+在线程挂起之前，不断地循环尝试获取锁，不同的是，一旦获取共享锁，会调用 setHeadAndPropagate 方法同时唤醒后继节点，实现共享模式,参考如下：
+```java
+private void setHeadAndPropagate(Node node, int propagate) {
+  // 头节点
+  Node h = head;
+  // 设置当前节点为新的头节点
+  // 这里不需要加锁操作，因为获取共享锁后，会从FIFO队列中依次唤醒队列，并不会产生并发安全问题
+  setHead(node);
+  if (propagate > 0 || h == null || h.waitStatus < 0 ||
+      (h = head) == null || h.waitStatus < 0) {
+    // 后继节点
+    Node s = node.next;
+    // 如果后继节点为空或者后继节点为共享类型，则进行唤醒后继节点
+    // 这里后继节点为空意思是只剩下当前头节点了
+    if (s == null || s.isShared())
+      doReleaseShared();
+  }
+}
+```
+1. 将当前节点设置为新的头节点，这点很重要，这意味着当前节点的前置节点（旧头节点）已经获取共享锁了，从队列中去除；
+2. 调用 doReleaseShared 方法，它会调用 unparkSuccessor 方法唤醒后继节点。
+
+### 释放锁
+```java
+public final boolean releaseShared(int arg) {
+  // 由用户自行实现释放锁条件
+  if (tryReleaseShared(arg)) {
+    // 执行释放锁
+    doReleaseShared();
+    return true;
+  }
+  return false;
+}
+
+private void doReleaseShared() {
+  for (;;) {
+    // 从头节点开始执行唤醒操作
+    // 这里需要注意，如果从setHeadAndPropagate方法调用该方法，那么这里的head是新的头节点
+    Node h = head;
+    if (h != null && h != tail) {
+      int ws = h.waitStatus;
+      //表示后继节点需要被唤醒
+      if (ws == Node.SIGNAL) {
+        // 初始化节点状态
+        //这里需要CAS原子操作，因为setHeadAndPropagate和releaseShared这两个方法都会顶用doReleaseShared，避免多次unpark唤醒操作
+        if (!compareAndSetWaitStatus(h, Node.SIGNAL, 0))
+          // 如果初始化节点状态失败，继续循环执行
+          continue;            // loop to recheck cases
+        // 执行唤醒操作
+        unparkSuccessor(h);
+      }
+      //如果后继节点暂时不需要唤醒，那么当前头节点状态更新为PROPAGATE，确保后续可以传递给后继节点
+      else if (ws == 0 &&
+               !compareAndSetWaitStatus(h, 0, Node.PROPAGATE))
+        continue;                // loop on failed CAS
+    }
+    // 如果在唤醒的过程中头节点没有更改，退出循环
+    // 这里防止其它线程又设置了头节点，说明其它线程获取了共享锁，会继续循环操作
+    if (h == head)                   // loop if head changed
+      break;
+  }
+}
+```
+共享锁的释放锁逻辑比独占锁的释放锁逻辑稍微复杂，原因是共享锁需要释放队列中所有共享类型的节点，因此需要循环操作，由于释放锁过程中会涉及多个地方修改节点状态，此时需要 CAS 原子操作来并发安全。
+获取共享锁流程图：
+![共享锁](aqs_2.jpg)
+
 # 总结
 在独占锁模式下，用 state 值表示锁并且 0 表示无锁状态，0 -> 1 表示从无锁到有锁，仅允许一条线程持有锁，其余的线程会被包装成一个 Node 节点放到队列中进行挂起，队列中的头节点表示当前正在执行的线程，当头节点释放后会唤醒后继节点，从而印证了 AQS 的队列是一个 FIFO 同步队列。
