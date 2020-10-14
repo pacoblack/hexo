@@ -3,10 +3,10 @@ title: flutter渲染原理分析
 toc: true
 date: 2019-12-04 19:00:41
 tags:
-- flutter
+- Flutter
 - 原理分析
 categories:
-- flutter
+- Flutter
 - 原理分析
 ---
 flutter UI 渲染原理

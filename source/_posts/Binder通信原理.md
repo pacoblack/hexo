@@ -3,9 +3,9 @@ title: Binder通信原理
 toc: true
 date: 2020-06-02 11:48:22
 tags:
-- Android
+- android
 categories:
-- Android
+- android
 - 原理
 ---
 

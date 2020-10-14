@@ -3,9 +3,9 @@ title: Handler原理
 toc: true
 date: 2020-06-02 14:43:41
 tags:
-- Android
+- android
 categories:
-- Android
+- android
 - 原理
 ---
 Handler、Looper、Message是Android线程间通信的重要概念，我们在项目中会经常用到，最常用的写法，创建一个Handler对象，在线程中通过Handler发送消息来更新UI。现在我们来看看Handler是怎么工作的

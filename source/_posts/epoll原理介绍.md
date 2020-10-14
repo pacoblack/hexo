@@ -3,9 +3,9 @@ title: epoll原理介绍
 toc: true
 date: 2020-06-02 10:59:37
 tags:
-- Android
+- android
 categories:
-- Android
+- android
 - 原理
 ---
 # 文件描述符fd

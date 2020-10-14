@@ -3,10 +3,10 @@ title: flutter框架总览
 toc: true
 date: 2019-12-04 19:08:48
 tags:
-- flutter
+- Flutter
 - 深入理解
 categories:
-- flutter
+- Flutter
 - 深入理解
 ---
 先来看看Flutter的大体构造

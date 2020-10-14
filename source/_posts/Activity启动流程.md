@@ -3,10 +3,9 @@ title: Activity启动流程
 toc: true
 date: 2020-06-04 10:08:05
 tags:
-- Android
+- android
 categories:
-- Android
-- 原理
+- android
 ---
 现在我们来看看Activity的启动流程
 <!--more-->

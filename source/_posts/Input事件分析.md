@@ -3,9 +3,9 @@ title: Input事件分析
 toc: true
 date: 2020-06-02 16:16:27
 tags:
-- Android
+- android
 categories:
-- Android
+- android
 - 原理
 ---
 前面我们已经介绍了Epoll机制，并且在Handler中也是利用的Epoll机制，现在介绍下 InputService，同样利用了Epoll

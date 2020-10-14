@@ -4,10 +4,8 @@ toc: true
 date: 2020-09-03 11:50:08
 tags:
 - android
-- 混淆
 categories:
 - android
-- 混淆
 ---
 混淆器的作用不仅仅是保护代码，它也有精简编译后程序大小的作用。
 <!--more-->

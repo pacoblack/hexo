@@ -3,9 +3,9 @@ title: Android Project Butter
 toc: true
 date: 2019-09-29 18:18:35
 tags:
-  - Android
+  - android
 categories:
-  - Android
+  - android
 ---
 
 Android 有关 UI 显示不流畅的问题也一直未得到根本解决, 直到 Android 4.0问世。作为严重影响Android口碑问题之一的UI流畅性差的问题，首先在Android 4.1版本中得到了有效处理。其解决方法就是本文要介绍的Project Butter。Project Butter对Android Display系统进行了重构，引入了三个核心元素，即 **VSYNC** 、**Triple Buffer** 和 **Choreographer**。其中，**VSYNC** 是理解Project Buffer的核心。
