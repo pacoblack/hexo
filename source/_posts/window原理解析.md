@@ -383,3 +383,4 @@ Toast 毕竟是要在 Window 中实现的，因此它最终还是要依附于 Wi
 
 # 补充
 ![touch事件传递处理](https://upload-images.jianshu.io/upload_images/944365-6ec2e864af7ffd37.png)
+![touch](http://gityuan.com/images/touch/touch1.jpg)
