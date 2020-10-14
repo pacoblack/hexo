@@ -9,7 +9,7 @@ categories:
 - Flutter
 - 深入理解
 ---
-
+<!--more-->
 # 通信过程
 
 我们知道，Flutter定义了三种不同类型的Channel，它们分别是

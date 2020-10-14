@@ -7,6 +7,7 @@ tags:
 categories:
 - android
 ---
+分析下window原理
 <!--more-->
 # Touch简介
 ![Activity与Window.jpg](https://upload-images.jianshu.io/upload_images/16327616-bd8c6d51bfb58c44.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
