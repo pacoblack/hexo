@@ -140,8 +140,11 @@ private native static void nativeSetFileDescriptorEvents(long ptr, int fd, int e
 我们知道handler 异步主要是通过 nativeInit nativeWake nativePollOnce, 而 nativeInit 主要是初始化，通过nativePollOnce阻塞，nativeWake唤醒阻塞，这里边就是epoll机制，nativeInit 向内核注册了一个文件系统，文件系统会通过红黑树创建高速缓存区，用来监听添加的socket，如果有事件就绪，内核就会将这个socket放到就绪list中，也就是这里的 nativeWake， 而nativePollOnce 会调用 epoll_waite, 来读取就绪list中的数据
 
 # 扩展
+在Handler中，Message分为3种：同步消息、异步消息、同步屏障消息
+我们通常使用的是同步消息
+**屏障消息和普通消息的区别在于屏障没有tartget，普通消息有target是因为它需要将消息分发给对应的target，而屏障不需要被分发，它就是用来挡住普通消息来保证异步消息优先处理的**
 ## 同步屏障
-
+如果遇到了同步屏障，则只取异步消息；否则按照插入顺序，一条一条读取
 设置了同步屏障之后，next函数将会忽略所有的同步消息，返回异步消息。换句话说就是，设置了同步屏障之后，Handler只会处理异步消息。再换句话说，同步屏障为Handler消息机制增加了一种简单的优先级机制，异步消息的优先级要高于同步消息。直到撤销该同步屏障消息，同步消息才得以继续处理。
 如果队列中没有异步消息，则loop()方法会被Linux epoll机制阻塞。
 Android应用框架中为了更快的响应UI刷新事件在ViewRootImpl.scheduleTraversals中使用了同步屏障。
