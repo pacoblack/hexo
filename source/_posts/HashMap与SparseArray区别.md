@@ -265,3 +265,184 @@ public void put(int key, E value) {
 - SparseArray比ArrayMap节省1/3的内存，但SparseArray只能用于key为int类型的Map，所以int类型的Map数据推荐使用SparseArray；
 - SparseArray适合频繁删除和插入来回执行的场景，性能比较好
 - SparseArray有延迟回收机制，提供删除效率，同时减少数组成员来回拷贝的次数
+
+# Hashtable
+>注意是 `Hashtable` 不是 `HashTable` (t为小写)，这不是违背了驼峰定理了嘛？这还得从 `Hashtable` 的出生说起，
+`Hashtable` 是在Java1.0的时候创建的，而集合的统一规范命名是在后来的Java2开始约定的，而当时又发布了新的集合代替它，所以这个命名也一直使用到现在。
+
+## 简单认识
+1. HashMap是线程不安全的，在多线程环境下会容易产生死循环，但是单线程环境下运行效率高；Hashtable线程安全的，很多方法都有synchronized修饰，但同时因为加锁导致单线程环境下效率较低。
+2. HashMap允许有一个key为null，允许多个value为null；而Hashtable不允许key或者value为null。
+
+## 构造函数
+```java
+public Hashtable(int initialCapacity, float loadFactor) {
+    if (initialCapacity < 0)
+        throw new IllegalArgumentException("Illegal Capacity: "+
+                                           initialCapacity);
+    if (loadFactor <= 0 || Float.isNaN(loadFactor))
+        throw new IllegalArgumentException("Illegal Load: "+loadFactor);
+
+    if (initialCapacity==0)
+        initialCapacity = 1;
+    this.loadFactor = loadFactor;
+    table = new HashtableEntry<?,?>[initialCapacity];
+    // Android-changed: Ignore loadFactor when calculating threshold from initialCapacity
+    // threshold = (int)Math.min(initialCapacity * loadFactor, MAX_ARRAY_SIZE + 1);
+    threshold = (int)Math.min(initialCapacity, MAX_ARRAY_SIZE + 1);
+}
+```
+- HashMap的底层数组的长度必须为2^n
+- Hashtable底层数组的长度可以为任意值，这就造成了当底层数组长度为合数的时候，Hashtable的hash算法散射不均匀，容易产生hash冲突。所以，可以清楚的看到Hashtable的默认构造函数底层数组长度为11（质数）
+
+## hash算法
+```Java
+// HashMap
+static final int hash(Object key) {
+    int h;
+    return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
+}
+```
+HashMap的hash算法通过非常规的设计，将底层table长度设计为2^n（合数）
+```java
+int hash = key.hashCode();
+//0x7FFFFFFF转换为10进制之后是Intger.MAX_VALUE,也就是2^31 - 1
+int index = (hash & 0x7FFFFFFF) % tab.length;
+```
+Hashtable的hash算法首先使得hash的值小于等于整型数的最大值，再通过%运算实现均匀散射。
+
+## 扩容机制
+```java
+//HashMap
+final Node<K,V>[] resize() {
+    Node<K,V>[] oldTab = table;
+    int oldCap = (oldTab == null) ? 0 : oldTab.length;
+    int oldThr = threshold;
+    int newCap, newThr = 0;
+    if (oldCap > 0) {
+        if (oldCap >= MAXIMUM_CAPACITY) {
+            threshold = Integer.MAX_VALUE;
+            return oldTab;
+        }
+        else if ((newCap = oldCap << 1) < MAXIMUM_CAPACITY &&
+                 oldCap >= DEFAULT_INITIAL_CAPACITY)
+            newThr = oldThr << 1; // 将阈值扩大为2倍
+    }
+    else if (oldThr > 0) // initial capacity was placed in threshold
+        newCap = oldThr;
+    else {               // 当threshold的为0的使用默认的容量，也就是16
+        newCap = DEFAULT_INITIAL_CAPACITY;
+        newThr = (int)(DEFAULT_LOAD_FACTOR * DEFAULT_INITIAL_CAPACITY);
+    }
+    if (newThr == 0) {
+        float ft = (float)newCap * loadFactor;
+        newThr = (newCap < MAXIMUM_CAPACITY && ft < (float)MAXIMUM_CAPACITY ?
+                  (int)ft : Integer.MAX_VALUE);
+    }
+    threshold = newThr;
+    @SuppressWarnings({"rawtypes","unchecked"})
+        //新建一个数组长度为原来2倍的数组
+        Node<K,V>[] newTab = (Node<K,V>[])new Node[newCap];
+    table = newTab;
+    if (oldTab != null) {
+        for (int j = 0; j < oldCap; ++j) {
+            Node<K,V> e;
+            if ((e = oldTab[j]) != null) {
+                oldTab[j] = null;
+                if (e.next == null)
+                    newTab[e.hash & (newCap - 1)] = e;
+                else if (e instanceof TreeNode)
+                    ((TreeNode<K,V>)e).split(this, newTab, j, oldCap);
+                else {
+                    //HashMap在JDK1.8的时候改善了扩容机制，原数组索引i上的链表不需要再反转。
+                    // 扩容之后的索引位置只能是i或者i+oldCap（原数组的长度）
+                    // 所以我们只需要看hashcode新增的bit为0或者1。
+                   // 假如是0扩容之后就在新数组索引i位置，新增为1，就在索引i+oldCap位置
+                    Node<K,V> loHead = null, loTail = null;
+                    Node<K,V> hiHead = null, hiTail = null;
+                    Node<K,V> next;
+                    do {
+                        next = e.next;
+                        // 新增bit为0，扩容之后在新数组的索引不变
+                        if ((e.hash & oldCap) == 0) {
+                            if (loTail == null)
+                                loHead = e;
+                            else
+                                loTail.next = e;
+                            loTail = e;
+                        }
+                        else {  //新增bit为1，扩容之后在新数组索引变为i+oldCap（原数组的长度）
+                            if (hiTail == null)
+                                hiHead = e;
+                            else
+                                hiTail.next = e;
+                            hiTail = e;
+                        }
+                    } while ((e = next) != null);
+                    if (loTail != null) {
+                        loTail.next = null;
+                        //数组索引位置不变，插入原索引位置
+                        newTab[j] = loHead;
+                    }
+                    if (hiTail != null) {
+                        hiTail.next = null;
+                        //数组索引位置变化为j + oldCap
+                        newTab[j + oldCap] = hiHead;
+                    }
+                }
+            }
+        }
+    }
+    return newTab;
+}
+```
+HashMap数组的扩容的整体思想就是创建一个长度为原先2倍的数组。然后对原数组进行遍历和复制。只不过jdk1.8对扩容进行优化，使得扩容不再需要进行链表的反转，只需要知道hashcode新增的bit位为0还是1。如果是0就在原索引位置，新增索引是1就在oldIndex+oldCap位置。
+
+```java
+//Hashtable
+protected void rehash() {
+    int oldCapacity = table.length;
+    Entry<?,?>[] oldMap = table;
+​
+    // overflow-conscious code
+    int newCapacity = (oldCapacity << 1) + 1;
+    if (newCapacity - MAX_ARRAY_SIZE > 0) {
+        if (oldCapacity == MAX_ARRAY_SIZE)
+            // Keep running with MAX_ARRAY_SIZE buckets
+            return;
+        newCapacity = MAX_ARRAY_SIZE;
+    }
+    Entry<?,?>[] newMap = new Entry<?,?>[newCapacity];
+​
+    modCount++;
+    threshold = (int)Math.min(newCapacity * loadFactor, MAX_ARRAY_SIZE + 1);
+    table = newMap;
+​
+    for (int i = oldCapacity ; i-- > 0 ;) {
+        for (Entry<K,V> old = (Entry<K,V>)oldMap[i] ; old != null ; ) {
+            Entry<K,V> e = old;
+            old = old.next;
+​
+            int index = (e.hash & 0x7FFFFFFF) % newCapacity;
+            //使用头插法将链表反序
+            e.next = (Entry<K,V>)newMap[index];
+            newMap[index] = e;
+        }
+    }
+}
+```
+Hashtable的扩容将先创建一个长度为原长度2倍的数组，再使用头插法将链表进行反序。
+
+## 结构组成
+```java
+private transient HashtableEntry<?,?>[] table;
+
+private static class HashtableEntry<K,V> implements Map.Entry<K,V> {
+   // END Android-changed: Renamed Entry -> HashtableEntry.
+   final int hash;
+   final K key;
+   V value;
+   HashtableEntry<K,V> next;
+}
+```
+所以结构是一个 数组+单链表 的组成
