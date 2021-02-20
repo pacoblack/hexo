@@ -247,12 +247,19 @@ atob@^2.1.1:
   resolved "https://registry.npm.taobao.org/atob/download/atob-2.1.2.tgz#6d9517eb9e030d2436666651e86bd9f6f13533c9"
   integrity sha1-bZUX654DDSQ2ZmZR6GvZ9vE1M8k=
 
-axios@0.19.2, axios@^0.19.0:
+axios@0.19.2:
   version "0.19.2"
   resolved "https://registry.npm.taobao.org/axios/download/axios-0.19.2.tgz#3ea36c5d8818d0d5f8a8a97a6d36b86cdc00cb27"
   integrity sha1-PqNsXYgY0NX4qKl6bTa4bNwAyyc=
   dependencies:
     follow-redirects "1.5.10"
+
+axios@^0.21.1:
+  version "0.21.1"
+  resolved "https://registry.yarnpkg.com/axios/-/axios-0.21.1.tgz#22563481962f4d6bde9a76d516ef0e5d3c09b2b8"
+  integrity sha512-dKQiRHxGD9PPRIUNIWvZhPTPpl1rf/OxTYKsqKUDjBwYylTvV7SjSHJb9ratfyzM6wCdLCOYLzs73qpg5c4iGA==
+  dependencies:
+    follow-redirects "^1.10.0"
 
 babel-polyfill@6.23.0:
   version "6.23.0"
@@ -1240,7 +1247,7 @@ entities@1.0:
   resolved "https://registry.npm.taobao.org/entities/download/entities-1.0.0.tgz#b2987aa3821347fcde642b24fdfc9e4fb712bf26"
   integrity sha1-sph6o4ITR/zeZCsk/fyeT7cSvyY=
 
-entities@^1.1.1, entities@^1.1.2, entities@~1.1.1:
+entities@^1.1.1, entities@~1.1.1:
   version "1.1.2"
   resolved "https://registry.npm.taobao.org/entities/download/entities-1.1.2.tgz?cache=0&sync_timestamp=1563403318326&other_urls=https%3A%2F%2Fregistry.npm.taobao.org%2Fentities%2Fdownload%2Fentities-1.1.2.tgz#bdfa735299664dfafd34529ed4f8522a275fea56"
   integrity sha1-vfpzUplmTfr9NFKe1PhSKidf6lY=
@@ -1474,6 +1481,11 @@ follow-redirects@1.5.10:
   integrity sha1-e3qfmuov3/NnhqlP9kPtB/T/Xio=
   dependencies:
     debug "=3.1.0"
+
+follow-redirects@^1.10.0:
+  version "1.13.2"
+  resolved "https://registry.yarnpkg.com/follow-redirects/-/follow-redirects-1.13.2.tgz#dd73c8effc12728ba5cf4259d760ea5fb83e3147"
+  integrity sha512-6mPTgLxYm3r6Bkkg0vNM0HTjfGrOEtsfbhagQvbxDEsEkpNhw582upBaoRZylzen6krEmxXJgt9Ju6HiI4O7BA==
 
 for-in@^1.0.1, for-in@^1.0.2:
   version "1.0.2"
@@ -1774,13 +1786,12 @@ has-yarn@^2.1.0:
   resolved "https://registry.npm.taobao.org/has-yarn/download/has-yarn-2.1.0.tgz#137e11354a7b5bf11aa5cb649cf0c6f3ff2b2e77"
   integrity sha1-E34RNUp7W/EapctknPDG8/8rLnc=
 
-hexo-asset-image@^1.0.0:
-  version "1.0.0"
-  resolved "https://registry.npm.taobao.org/hexo-asset-image/download/hexo-asset-image-1.0.0.tgz#f229ad28b071a32b1d5b121f929a296e714fd24a"
-  integrity sha1-8imtKLBxoysdWxIfkpopbnFP0ko=
+"hexo-asset-image@git+https://github.com/7ym0n/hexo-asset-image.git":
+  version "0.0.3"
+  uid "6c88c98214765112d148850a646ddca379fcdcfe"
+  resolved "git+https://github.com/7ym0n/hexo-asset-image.git#6c88c98214765112d148850a646ddca379fcdcfe"
   dependencies:
     cheerio "^0.19.0"
-    entities "^1.1.2"
 
 hexo-bunyan@^1.0.0:
   version "1.0.0"
