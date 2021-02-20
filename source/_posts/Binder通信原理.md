@@ -51,11 +51,11 @@ Binder IPC 机制中涉及到的内存映射通过 mmap() 来实现，mmap() 是
 1, 首先 Binder 驱动在内核空间创建一个数据接收缓存区；
 2, 接着在内核空间开辟一块内核缓存区，建立**内核缓存区**和**数据接收缓存区**之间的映射关系，以及数据接收缓存区和接收进程用户空间地址的映射关系；
 3, 发送方进程通过系统调用 copyfromuser() 将数据 copy 到内核中的内核缓存区，由于内核缓存区和接收进程的用户空间存在内存映射，因此也就相当于把数据发送到了接收进程的用户空间，这样便完成了一次进程间的通信。
-![通信过程](http://upload-images.jianshu.io/upload_images/16327616-b105ae3d79bf354e.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![通信过程](https://raw.githubusercontent.com/pacoblack/BlogImages/master/binder/binder1.jpg)
 
 # 通信模型
 Binder 是基于 C/S 架构的，由Client、Server、ServiceManager、BinderDriver 四部分组成。其中 Client、Server、ServiceManager 运行在用户空间，BinderDriver 运行在内核空间。其中 ServiceManager 和 BinderDriver 由系统提供，而 Client、Server 由应用程序来实现。Client、Server 和 ServiceManager 均是通过系统调用 open、mmap 和 ioctl 来访问设备文件 /dev/binder，从而实现与 BinderDriver 的交互来间接的实现跨进程通信。
-![通信结构模型](http://upload-images.jianshu.io/upload_images/16327616-4d66060a149d9c40.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![通信结构模型](https://raw.githubusercontent.com/pacoblack/BlogImages/master/binder/binder2.jpg)
 > **Binder 驱动**
 Binder 驱动是整个通信的核心；驱动负责进程之间 Binder 通信的建立，Binder 在进程之间的传递，Binder 引用计数管理，数据包在进程之间的传递和交互等一系列底层支持。
 **ServiceManager 与 Server Binder**
@@ -68,10 +68,10 @@ Server 向 ServiceManager 中注册了 Binder 以后， Client 就能通过名�
 1, 一个进程使用 BINDERSETCONTEXT_MGR 命令通过 Binder 驱动将自己注册成为 ServiceManager；
 2, Server 通过驱动向 ServiceManager 中注册 Binder（Server 中的 Binder 实体），表明可以对外提供服务。驱动为这个 Binder 创建位于内核中的实体节点以及 ServiceManager 对实体的引用，将名字以及新建的引用打包传给 ServiceManager，ServiceManger 将其填入查找表。
 3, Client 通过名字，在 Binder 驱动的帮助下从 ServiceManager 中获取到对 Binder 实体的引用，通过这个引用就能实现和 Server 进程的通信。
-![通信过程模型](http://upload-images.jianshu.io/upload_images/16327616-b116e9d830fc8cf8.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![通信过程模型](https://raw.githubusercontent.com/pacoblack/BlogImages/master/binder/binder3.jpg)
 其中是从绿色的箭头开始，server -> Binder 驱动 -> ServiceManager , Client -> Binder 驱动  -> ServiceManager -> Binder驱动 -> Client
 
-![Binder 通信协议](http://upload-images.jianshu.io/upload_images/16327616-b89d54b3561bbb4b.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![Binder 通信协议](https://raw.githubusercontent.com/pacoblack/BlogImages/master/binder/binder4.jpg)
 - Binder客户端或者服务端向Binder Driver发送的命令都是以BC_开头,例如本文的BC_TRANSACTION和BC_REPLY, 所有Binder Driver向Binder客户端或者服务端发送的命令则都是以BR_开头, 例如本文中的BR_TRANSACTION和BR_REPLY.
 - 只有当BC_TRANSACTION或者BC_REPLY时, 才调用binder_transaction()来处理事务. 并且都会回应调用者一个BINDER_WORK_TRANSACTION_COMPLETE事务, 经过binder_thread_read()会转变成BR_TRANSACTION_COMPLETE.
 - 在A端向B写完数据之后，A会返回给自己一个BR_TRANSACTION_COMPLETE命令，告知自己数据已经成功写入到B的Binder内核空间中去了，如果是需要回复，在处理完 BR_TRANSACTION_COMPLETE 命令后会继续阻塞等待结果的返回
@@ -107,7 +107,7 @@ return err;
 
 # Android 对 Binder 的支持
 由于Android 的app都是从Zygote进程fork出来的，Zygote.forkAndSpecialize()用来 fork 新进程，通过RuntimeInit.nativeZygoteInit来初始化一些环境，通过 runSelectLoop来循环监听 socket，等待fork请求。
-![Android对Binder支持原理](http://upload-images.jianshu.io/upload_images/16327616-e9b40c2dbe980b74?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![Android对Binder支持原理](https://raw.githubusercontent.com/pacoblack/BlogImages/master/binder/binder5.png)
 首先，ProcessState::self()函数会调用open()打开/dev/binder设备，这个时候能够作为Client通过Binder进行远程通信；其次，proc->startThreadPool()负责新建一个binder线程，监听Binder设备，这样进程就具备了作为Binder服务端的资格。每个APP的进程都会通过onZygoteInit打开Binder，既能作为Client，也能作为Server，这就是Android进程天然支持Binder通信的原因。
 
 问：Android APP有多少Binder线程，是固定的么
