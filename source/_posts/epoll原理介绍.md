@@ -17,15 +17,15 @@ categories:
 
 # I/O模式
 - 阻塞 I/O
- ![阻塞模型](http://upload-images.jianshu.io/upload_images/16327616-32a770e2a09f88c8?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+ ![阻塞模型](https://raw.githubusercontent.com/pacoblack/BlogImages/master/epoll/epoll1.png)
 用户等待数据被阻塞，内核等待数据被阻塞，然后从内核拷贝到用户内存，内核返回结果，用户进程才解除阻塞
 
 - 非阻塞 I/O (轮询)
-![非阻塞模型](http://upload-images.jianshu.io/upload_images/16327616-e50dbf4e1227b384?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![非阻塞模型](https://raw.githubusercontent.com/pacoblack/BlogImages/master/epoll/epoll2.png)
 当用户进程发出read操作时，如果kernel中的数据还没有准备好，那么它并不会block用户进程，而是立刻返回一个error。用户进程判断结果是一个error时，它就知道数据还没有准备好，于是它可以再次发送read操作。一旦kernel中的数据准备好了，并且又再次收到了用户进程的system call，那么它马上就将数据拷贝到了用户内存，然后返回。
 
 - I/O 多路复用
-![多路复用模型](http://upload-images.jianshu.io/upload_images/16327616-372040dcbdb97f50?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![多路复用模型](https://raw.githubusercontent.com/pacoblack/BlogImages/master/epoll/epoll3.png)
 就是我们说的select，poll，epoll，有的也称这种IO方式为事件驱动 I/O。
 单个process就可以同时处理多个网络连接的IO，select方法会不断的轮询所负责的所有socket，当某个socket有数据到达了，就通知用户进程。
 `当用户进程调用了select，那么整个进程会被block`，而同时，kernel会“监视”所有select负责的socket，当任何一个socket中的数据准备好了，select就会返回。这个时候用户进程再调用read操作，将数据从kernel拷贝到用户进程。
@@ -33,15 +33,15 @@ categories:
 - 信号驱动 I/O
 （无）
 - 异步 I/O
-![异步IO模型](http://upload-images.jianshu.io/upload_images/16327616-a6faac05a3649a8e?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![异步IO模型](https://raw.githubusercontent.com/pacoblack/BlogImages/master/epoll/epoll4.png)
 用户进程发起read操作之后，立刻就可以开始去做其它的事。而另一方面，从kernel的角度，当它收到一个asynchronous read之后，首先它会立刻返回，所以不会对用户进程产生任何block。然后，kernel会等待数据准备完成，然后将数据拷贝到用户内存，当这一切都完成之后，kernel会给用户进程发送一个signal，告诉它read操作完成了。
 
 # 五种模型对比图
-![多个IO模型对比](http://upload-images.jianshu.io/upload_images/16327616-8c766245465d3db5?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![多个IO模型对比](https://raw.githubusercontent.com/pacoblack/BlogImages/master/epoll/epoll5.png)
 
 # 异步I/O 介绍
 ## select
-![select工作模型](https://pic2.zhimg.com/v2-09821e3b04e7cdbf49125276fc4c8761_r.jpg)
+![select工作模型](https://raw.githubusercontent.com/pacoblack/BlogImages/master/epoll/epoll6.jpg)
 用户首先将需要进行IO操作的socket添加到select中，然后阻塞等待select系统调用返回。当数据到达时，socket被激活，select函数返回。用户线程正式发起read请求，读取数据并继续执行。
 从流程上来看，使用select函数进行IO请求和同步阻塞模型没有太大的区别，甚至还多了添加监视socket，以及调用select函数的额外操作，效率更差。但是，使用select以后最大的优势是用户可以在一个线程内同时处理多个socket的IO请求。用户可以注册多个socket，然后不断地调用select读取被激活的socket，即可达到在同一个线程内同时处理多个IO请求的目的。而在同步阻塞模型中，必须通过多线程的方式才能达到这个目的。
 
@@ -109,7 +109,7 @@ epoll对文件描述符的操作有两种模式：LT（level trigger）和ET（e
 epoll 监视的描述符数量不受限制，它所支持的FD上限是最大可以打开文件的数目，这个数字一般远大于2048,举个例子,在1GB内存的机器上大约是10万左右，具体数目可以cat /proc/sys/fs/file-max察看,一般来说这个数目和系统内存关系很大。select的最大缺点就是进程打开的fd是有数量限制的。这对于连接数量比较大的服务器来说根本不能满足。
 
 ### 实现结构
-![epoll内部数据结构](https://oscimg.oschina.net/oscnet/up-57d9345baa1f234db163ef9f6916c66ef48.png)
+![epoll内部数据结构](https://raw.githubusercontent.com/pacoblack/BlogImages/master/epoll/epoll7.png)
 调用epoll_create后，内核就已经在内核态开始准备帮你存储要监控的句柄了，每次调用epoll_ctl只是在往内核的数据结构里塞入新的socket句柄。
 
 在内核里，一切皆文件。所以，epoll向内核注册了一个文件系统，用于存储上述的被监控socket。当你调用epoll_create时，就会在这个**虚拟的epoll文件系统里创建一个file结点**。当然这个file不是普通文件，它只服务于epoll。
