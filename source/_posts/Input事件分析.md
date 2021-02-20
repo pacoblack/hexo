@@ -119,7 +119,7 @@ status_t InputManager::start() {
 ![InputManagerService](InputManagerService.jpg)
 
 ## 构造流程
-![整体流程图](http://upload-images.jianshu.io/upload_images/16327616-789cc8d3db15cf8d?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![整体流程图](https://raw.githubusercontent.com/pacoblack/BlogImages/master/input/input1.png)
 
 InputManger 通过 InputReaderThread 读和处理未加工的输入事件然后分发到 DispatcherThread 队列中， InputDispatcherThread 将接收的队列发送给相应的应用程序
 
@@ -131,9 +131,9 @@ InputManger 通过 InputReaderThread 读和处理未加工的输入事件然后�
 # 事件处理过程
 
 ### 流程概览
-![具体流程图](http://upload-images.jianshu.io/upload_images/16327616-bba049140b690101?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![具体流程图](https://raw.githubusercontent.com/pacoblack/BlogImages/master/input/input2.png)
 
-![整体流程图](http://upload-images.jianshu.io/upload_images/16327616-f00876a0a8171f40?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![整体流程图](https://raw.githubusercontent.com/pacoblack/BlogImages/master/input/input3.png)
 
 在 NativeInputManager 中，曾经创建的EventHub，并作为参数传递给了 InputManger。EventHub是将不同来源的消息转化为统一类型并交给上层处理。主要就是控制InputThread和DispatchThread进行交互
 ### 初始化
@@ -349,7 +349,7 @@ void InputReader::processEventsLocked(const RawEvent* rawEvents, size_t count) {
 
 - `getEvents` 方法会进行一些新增设备和移除设备的更新操作。至于点击事件是通过指针参数 RawEvent, 其作为起始地址记录事件，在循环体中，处理获取时间、检测相关设备类型、读取事件，如果检测到事件，则跳出循环。更新 mPendingEventCount 和 mPendingEventIndex 来控制事件的读取，epoll_wait 来得到事件的来源。
 - `processEventsLocked` 在 looperOnce 获取到事件后，会被调用. 其负责事件添加、设备移除等，事件相关还有 processEventsForDeviceLocked 方法，根据事件获取相应的设备类型，并交给相应的设备处理，即 InputMapper 。
-![InputMapper及其子类](http://upload-images.jianshu.io/upload_images/16327616-2fbdda7840e38fc9?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![InputMapper及其子类](https://raw.githubusercontent.com/pacoblack/BlogImages/master/input/input4.png)
 
 ### processEventsLocked
 分发到对应的mapper后，事件会被 mapper.process 处理
@@ -862,7 +862,7 @@ status_t InputConsumer::consume(InputEventFactoryInterface* factory,
 }
 ```
 调用 consume 方法会持续的调用 InputChannel 的 receiveMessage 方法来从 socket 中读取数据。到这里，我们已经将写入socket的事件读出来了。接下来就会通过 ViewRootImpl 将事件派发到 Activity 中去。
-![事件派发原理图](http://upload-images.jianshu.io/upload_images/16327616-740fdbafdfa48224?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![事件派发原理图](https://raw.githubusercontent.com/pacoblack/BlogImages/master/input/input5.png)
 
 ## 总结
 在 SystemServer 进程通过epoll 监听 input，在用户进程创建window的时候注册channel，channel通过socket进行进程间通信，InputConsumer 通过consume 发送到用户activity消费输入事件
