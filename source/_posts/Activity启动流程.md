@@ -23,6 +23,6 @@ categories:
 7. 主线程在收到Message后，通过发射机制创建目标Activity，并回调Activity.onCreate()等方法
 
 # 具体流程
-![调用流程图](https://upload-images.jianshu.io/upload_images/16327616-5a67121fb3c8b87e.jpg)
+![调用流程图](https://raw.githubusercontent.com/pacoblack/BlogImages/master/activity/activity1.jpg)
 
 ![UML图](startActivity.jpg)
