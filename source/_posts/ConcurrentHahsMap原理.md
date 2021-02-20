@@ -12,14 +12,14 @@ categories:
 <!--more-->
 # 初步认识
 在Jdk8中的数据结构
-![](https://img2018.cnblogs.com/i-beta/1635748/202001/1635748-20200112144800523-38023773.png)
+![](https://raw.githubusercontent.com/pacoblack/BlogImages/master/1635748-20200112144800523-38023773.png)
 和HashMap的结构是一样的，没错在数据结构层面，ConcurrentHashMap和HashMap是完全一样的。
 
 # 之前的结构
 
 在JDK8之前HashMap没有引入红黑树，同样的ConcurrentHashMap也没有引入红黑树。而且ConcurrentHashMap采用的是分段数组的底层数据结构。
 如下图所示
-![](https://img2018.cnblogs.com/i-beta/1635748/202001/1635748-20200112145618510-591452614.png)
+![](https://raw.githubusercontent.com/pacoblack/BlogImages/master/1635748-20200112145618510-591452614.png)
 JDK7中为了提高并发性能采用了这种分段的设计。所以在JDK7中ConcurrentHashMap采用的是分段锁，也就是在每个Segment上加`ReentrantLock`(*ReetrantLoack是比Synchronized更细粒度的一种锁。使用得当的话其性能要比Synchronized表现要好，但是如果实现不得当容易造成死锁*)实现的线程安全线。
 
 这种基于Segment和ReetrantLock的设计相对HashTable来说大大提高了并发性能。也就是说多个线程可以并发的操作多个Segment，而HashTable是通过给每个方法加Synchronized即将多线程串行而实现的。所以在一定程度上提高了并发性能。但是这种性能的提升表现相对JDK8来说显得不值一提。
@@ -322,32 +322,32 @@ private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
 }
 ```
 我们可以看下面的两个图
-![](https://img2018.cnblogs.com/i-beta/1635748/202001/1635748-20200113164216447-1278369367.png)
-![](https://img2018.cnblogs.com/i-beta/1635748/202001/1635748-20200113164252551-1234632431.png)
+![](https://raw.githubusercontent.com/pacoblack/BlogImages/master/search1.png)
+![](https://raw.githubusercontent.com/pacoblack/BlogImages/master/search2.png)
 比如原先在1的位置，扩容后就可能在1或者17的位置，所以通过 `ph&n==0` 来判断是放在1中还是17中，
 因为以前都是通过ph&16得到索引位置，新桶是通过ph&32取得索引位置，新的位置与旧的位置的差别显而易见。
 
 现在看一个演示过程
-![](https://img2018.cnblogs.com/i-beta/1635748/202001/1635748-20200113180828655-1406714067.png)
+![](https://raw.githubusercontent.com/pacoblack/BlogImages/master/search3.png)
 1. 显示遍历得到lastRun，并赋值给ln(或者hn，这里按ln解说)
 2. 再重新遍历，将与ln相同位置的放到ln的表头，hn同理
 3. 得到上图样式
 
 # 并发演示
 1. 线程1进行put操作，这时发现size > sizeCtl。开始进行扩容
-![](https://img2018.cnblogs.com/i-beta/1635748/202001/1635748-20200114153245228-30554462.png)
+![](https://raw.githubusercontent.com/pacoblack/BlogImages/master/search4.png)
 
 2. 此时线程1已经完成oldTab中索引[2，16)中的扩容。正在进行索引为1的桶的扩容。接下来线程2执行get。
-![](https://img2018.cnblogs.com/i-beta/1635748/202001/1635748-20200114153332267-1482925142.png)
+![](https://raw.githubusercontent.com/pacoblack/BlogImages/master/search5.png)
 
 3. 线程2根据get逻辑和key的hash，可能访问的三种情况如上图所示
 - 访问蓝色号桶(未扩容的桶):该桶还未进行扩容，所以在桶中找到对应元素，返回。
 - 访问绿色桶(正在扩容的桶):该桶正在扩容，在扩容过程中，线程1持有Synchronized锁，线程2只能自旋等待。
 - 访问橘色桶(已扩容的桶):该桶已扩容，oldTab中是fwd节点，hash=-1，所以执行fwd节点的find逻辑，fwd节点持有newTab(nextTable)，所以线程2去newTab中查找对应元素，返回。
-![](https://img2018.cnblogs.com/i-beta/1635748/202001/1635748-20200114153435438-1108705553.png)
+![](https://raw.githubusercontent.com/pacoblack/BlogImages/master/search6.png)
 
 4. 当线程1进行扩容时，线程3进来执行put，同样存在三种可能的情况
 - 访问蓝色桶(未扩容的桶):正常执行put逻辑。
 - 访问绿色桶(正扩容的桶):因为线层1持有Synchronized锁，线程3将一直自旋，等待扩容结束。
 - 访问橘色桶(已扩容的桶):因为已扩容的桶，在oldTab中是fwd节点，hash = -1 = MOVED，所以线程3执行帮助扩容的逻辑。等待扩容完成，线程3继续完成put逻辑。
-![](https://img2018.cnblogs.com/i-beta/1635748/202001/1635748-20200114153512551-1590215923.png)
+![](https://raw.githubusercontent.com/pacoblack/BlogImages/master/search7.png)
