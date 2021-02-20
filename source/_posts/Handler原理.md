@@ -118,6 +118,17 @@ next方法主要是取出将要执行的message， 主要步骤如下：
 
   7. 运行idle Handle，idle表示当前有空闲时间的时候执行，而运行到这一步的时候，表示消息队列处理已经是出于空闲时间了（队列中没有Message，或者头部Message的执行时间(when)在当前时间之后）。如果没有idle，则继续step2，如果有则执行idleHandler的queueIdle方法，我们可以自己添加IdleHandler到MessageQueue里面（addIdleHandler方法），执行完后，回到step2。
 
+## nativePollOnce
+当前线程会通过 `nativePollOnce`进入到线程阻塞状态，线程阻塞类似于Object.wait()(区别是nativePollOnce使用 epoll, 而 Object.wait 使用 futex Linux 调用)，此时会释放CPU，而唤醒则是通过enqueueMessage()->nativeWake 来唤醒线程，这里用到的就是epoll机制，简单的说就是
+
+**epoll机制，是一种IO多路复用机制，可以同时监控多个描述符，当某个描述符就绪(读或写就绪)，则立刻通知相应程序进行读或写操作，本质同步I/O，即读写是阻塞的。**
+
+**nativePollOnce()只是表明所有消息的处理已完成, 线程正在等待下一个消息**
+
+**nativeWake()表示有新的消息进入队列，写入一个W字符将相应的管道唤醒**
+
+再详细点就是：MessageQueue创建了一个文件描述符来监听事件，当没有消息时会无限阻塞当前线程，当有消息时，会将message加入队列，并向文件描述符写入一个w表示有消息入队，通过epoll激活 nativePollOnce，来获取下一个message
+
 # native
 
 ```java
