@@ -1,0 +1,129 @@
+---
+title: Android优化总结
+toc: true
+date: 2021-02-23 15:06:09
+tags:
+- android
+categories:
+- android
+---
+对之前遇到的优化进行一个小结
+<!--more-->
+# 绘制优化
+
+## 刷新机制
+4.1版本的Project Butter对Android Display系统进行了重构，引入了三个核心元素：VSYNC（Vertical Synchronization）、Triple Buffer、Choreographer。
+- VSYNC，即垂直同步可认为是一种定时中断。
+- Choreographer，起调度的作用，将绘制工作统一到VSYNC的某个时间点上，使应用的绘制工作有序。当收到VSYNC信号时，就会调用用户设置的回调函数。回调类型的优先级从高到低为CALLBACK_INPUT、CALLBACK_ANIMATION、CALLBACK_TRAVERSAL。
+
+## 双缓冲技术
+在Linux上通常使用Framebuffer来做显示输出，当用户进程更新Framebuffer中的数据后，显示驱动会把FrameBuffer中每个像素点的值更新到屏幕，但是如果上一帧数据还没显示完，Framebuffer中的数据又更新了，就会带来残影的问题，用户会觉得有闪烁感，所以采用了双缓冲技术。
+
+双缓冲意味着要使用两个缓冲区（在上文提及的SharedBufferStack中），其中一个称为Front Buffer，另一个称为Back Buffer。UI总是先在Back Buffer中绘制，然后再和Front Buffer交换，渲染到显示设备中。即只有当另一个buffer的数据准备好后，通过io_ctl来通知显示设备切换Buffer。
+
+## 优化方法
+- 布局优化：减少层级、提升显示速度(ViewStub)、复用布局
+- 绘制优化：减少背景设置、自定义View优化
+
+# 内存优化
+
+## 对象声明周期
+- Created
+1. 为对象分配存储空间。
+2. 构造对象。
+3. 从超类到子类对static成员进行初始化，类的static成员的初始化在ClassLoader加载该类时进行。
+4. 超类成员变量按顺序初始化，递归调用超类的构造方法。
+5. 子类成员变量按顺序初始化，一旦对象被创建，子类构造方法就调用该对象并为某些变量赋值。
+- InUse 此时对象至少被一个强引用持有。
+- Invisible 当一个对象处于不可见阶段时，说明程序本身不再持有该对象的任何强引用，虽然该对象仍然是存在的。
+- Unreachable 该对象不再被任何强引用持有。
+- Collected 当GC已经对该对象的内存空间重新分配做好准备时，对象进入收集阶段，如果该对象重写了finalize()方法，则执行它
+- Finalized 等待垃圾回收器回收该对象空间
+- Deallocated GC对该对象所占用的内存空间进行回收或者再分配，则该对象彻底消失。
+
+## 虚拟机内存分配
+对于Android Runtime有两种虚拟机，Dalvik和ART，不管是Dlavik还是ART，运行时堆都分为LinearAlloc（类似于ART的Non Moving Space）、Zygote Space和Alloc Space。它们分配的内存区域块是不同的：
+
+Dalvik
+- Linear Alloc
+是一个线性内存空间，是一个只读区域，主要用来存储虚拟机中的类，因为类加载后只需要读的属性，并且不会改变它。把这些只读属性以及在整个进程的生命周期都不能结束的永久数据放到线性分配器中管理，能很好地减少堆混乱和GC扫描，提升内存管理的性能。
+- Zygote Space
+在Zygote进程和应用程序进程之间共享
+- Alloc Space
+每个进程独占
+
+ART
+- Non Moving Space
+- Zygote Space
+- Alloc Space
+- Image Space 存放一些预加载类，类似于Dalvik中的Linear Alloc。与Zygote Space一样，在Zygote进程和应用程序进程之间共享。
+- Large Obj Space 离散地址的集合，分配一些大对象，用于提高GC的管理效率和整体性能。
+
+Android系统的第一个虚拟机由Zygote进程创建并且只有一个Zygote Space。但是当Zygote进程在fork第一个应用程序进程之前，会将已经使用的那部分堆内存划分为一部分，还没有使用的堆内存划分为另一部分，也就是Allocation Space。但无论是应用程序进程，还是Zygote进程，当他们需要分配对象时，都是在各自的Allocation Space堆上进行。
+
+## 内存回收
+![](https://raw.githubusercontent.com/pacoblack/BlogImages/master/optm/optm1.jpg)
+1、对象创建后在Eden区。(Copying算法)
+2、执行GC后，如果对象仍然存活，则复制到S0区。
+3、当S0区满时，该区域存活对象将复制到S1区，然后S0清空，接下来S0和S1角色互换。
+4、当第3步达到一定次数（系统版本不同会有差异）后，存活对象将被复制到Old Generation。(标记算法)
+5、当这个对象在Old Generation区域停留的时间达到一定程度时，它会被移动到Old Generation，最后累积一定时间再移动到Permanent Generation区域。
+
+## 常见内存泄漏场景
+资源性对象未关闭、注册对象未注销、类的静态变量持有大数据对象、非静态内部类的静态实例、Handler临时性内存泄漏、容器中的对象没清理造成的内存泄漏、WebView（为WebView开启一个独立的进程，使用AIDL与应用的主进程进行通信，WebView所在的进程可以根据业务的需要选择合适的时机进行销毁）
+
+## 优化方法
+引用方式(SoftReference、WeakReference和PhantomReference)、减少不必要的内存开销（自动装箱、内存复用）、合理使用数据结构、图片优化
+
+# 启动速度优化
+## 统计方式
+代码打点、AOP动态代理打点
+
+## 优化方案
+懒加载、线程池、hook线程构建、预加载优化（替换ClassLOader，打印加载时间）、webView启动优化、页面数据预加载、启动阶段不启动子进程、闪屏页优化、IO优化、定义task绘制有向无环图
+```java
+//hook线程的构造函数
+DexposedBridge.hookAllConstructors(Thread.class, new XC_MethodHook() {
+    @Override protected void afterHookedMethod（MethodHookParam param）throws Throwable {                         
+        super.afterHookedMethod(param);
+        Thread thread = (Thread) param.thisObject;
+        LogUtils.i("stack " + Log.getStackTraceString(new Throwable());
+    }
+);
+```
+
+# 稳定性优化
+## native崩溃信号
+>#define SIGHUP 1  // 终端连接结束时发出(不管正常或非正常)
+#define SIGINT 2  // 程序终止(例如Ctrl-C)
+#define SIGQUIT 3 // 程序退出(Ctrl-\)
+#define SIGILL 4 // 执行了非法指令，或者试图执行数据段，堆栈溢出
+#define SIGTRAP 5 // 断点时产生，由debugger使用
+#define SIGABRT 6 // 调用abort函数生成的信号，表示程序异常
+#define SIGIOT 6 // 同上，更全，IO异常也会发出
+#define SIGBUS 7 // 非法地址，包括内存地址对齐出错，比如访问一个4字节的整数, 但其地址不是4的倍数
+#define SIGFPE 8 // 计算错误，比如除0、溢出
+#define SIGKILL 9 // 强制结束程序，具有最高优先级，本信号不能被阻塞、处理和忽略
+#define SIGUSR1 10 // 未使用，保留
+#define SIGSEGV 11 // 非法内存操作，与 SIGBUS不同，他是对合法地址的非法访问，    比如访问没有读权限的内存，向没有写权限的地址写数据
+#define SIGUSR2 12 // 未使用，保留
+#define SIGPIPE 13 // 管道破裂，通常在进程间通信产生
+#define SIGALRM 14 // 定时信号,
+#define SIGTERM 15 // 结束程序，类似温和的 SIGKILL，可被阻塞和处理。通常程序如    果终止不了，才会尝试SIGKILL
+#define SIGSTKFLT 16  // 协处理器堆栈错误
+#define SIGCHLD 17 // 子进程结束时, 父进程会收到这个信号。
+#define SIGCONT 18 // 让一个停止的进程继续执行
+#define SIGSTOP 19 // 停止进程,本信号不能被阻塞,处理或忽略
+#define SIGTSTP 20 // 停止进程,但该信号可以被处理和忽略
+#define SIGTTIN 21 // 当后台作业要从用户终端读数据时, 该作业中的所有进程会收到SIGTTIN信号
+#define SIGTTOU 22 // 类似于SIGTTIN, 但在写终端时收到
+#define SIGURG 23 // 有紧急数据或out-of-band数据到达socket时产生
+#define SIGXCPU 24 // 超过CPU时间资源限制时发出
+#define SIGXFSZ 25 // 当进程企图扩大文件以至于超过文件大小资源限制
+#define SIGVTALRM 26 // 虚拟时钟信号. 类似于SIGALRM,     但是计算的是该进程占用的CPU时间.
+#define SIGPROF 27 // 类似于SIGALRM/SIGVTALRM, 但包括该进程用的CPU时间以及系统调用的时间
+#define SIGWINCH 28 // 窗口大小改变时发出
+#define SIGIO 29 // 文件描述符准备就绪, 可以开始进行输入/输出操作
+#define SIGPOLL SIGIO // 同上，别称
+#define SIGPWR 30 // 电源异常
+#define SIGSYS 31 // 非法的系统调用
