@@ -17,12 +17,12 @@ SurfaceView 拥有独立的绘图表面，即它不与其宿主窗口共享同�
 我们知道普通的 Android 控件，例如 TextView、Button 等，它们都是将自己的UI绘制在宿主窗口的绘图表面之上，这意味着它们的UI是在应用程序的主线程中进行绘制的。
 
 一般来说，每一个窗口在SurfaceFlinger服务中都对应有一个Layer，用来描述它的绘图表面。对于那些具有SurfaceView的窗口来说，每一个 SurfaceView 在 SurfaceFlinger 服务中还对应有一个独立的 Layer 或者 LayerBuffer ，用来单独描述它的绘图表面，以区别于它的宿主窗口的绘图表面。SurfaceFlinger 服务把所有的 LayerBuffer 和 Layer 都抽象为 LayerBase，因此就可以用统一的流程来绘制和合成它们的UI。
-![SurfaceView 与 Activity 绘制](http://upload-images.jianshu.io/upload_images/16327616-f53ffe0c69416850.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![SurfaceView 与 Activity 绘制](https://raw.githubusercontent.com/pacoblack/BlogImages/master/surface/surface1.jpg)
 
 上图中 Activity 的 DecorView 及其中的两个 TextView 的UI就是绘制在 [SurfaceFlinger](https://www.jianshu.com/p/730dd558c269) 服务中的**同一个Layer**上面的，而 SurfaceView 的 UI 是绘制在 SurfaceFlinger 服务中的**另外一个 Layer 或者 LayerBuffer** 上的。
 >注意，用来描述SurfaceView的Layer或者LayerBuffer的Z轴位置是小于用来其宿主Activity窗口的Layer的Z轴位置的，但是前者会在后者的上面挖一个“洞”出来，以便它的UI可以对用户可见。实际上，SurfaceView在其宿主Activity窗口上所挖的“洞”只不过是在其宿主Activity窗口上设置了一块透明区域。
 
-![调用时序图](https://upload-images.jianshu.io/upload_images/16327616-0e141c2081ad969a.jpg)
+![调用时序图](https://raw.githubusercontent.com/pacoblack/BlogImages/master/surface/surface2.jpg)
 
 ## 用法
 ```java
@@ -75,7 +75,7 @@ public class SurfaceViewDemo extends SurfaceView implements SurfaceHolder.Callba
 ```
 
 # 原理
-![屏幕应用程序window组成](http://upload-images.jianshu.io/upload_images/16327616-4214f5d552b6e654.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![屏幕应用程序window组成](https://raw.githubusercontent.com/pacoblack/BlogImages/master/surface/surface3.jpg)
 每个应用程序可能对应着一个或者多个图形界面，而每个界面我们就称之为一个surface ，或者说是window ，在上面的图中我们能看到4 个surface ，一个是home 界面，还有就是红、绿、蓝分别代表的3个surface ，而两个button 实际是home surface 里面的内容。我们需要考虑以下两种情况：
 - 每个surface 在屏幕上有它的位置、大小，然后每个surface 里面还有要显示的内容
 - 各个surface 之间可能有重叠
@@ -87,25 +87,25 @@ public class SurfaceViewDemo extends SurfaceView implements SurfaceHolder.Callba
 以IMX51 为例，当IPU 向内核申请FB 的时候它会申请3 个FB ，一个是主屏的，还一个是副屏的，还一个就是Overlay 的。 简单地来说，Overlay就是我们将硬件所能接受的格式数据和控制信息送到这个Overlay FrameBuffer，由硬件驱动来负责merge Overlay buffer和主屏buffer中的内容。
 
 一般来说现在的硬件都只支持一个Overlay，主要用在视频播放以及camera preview上，因为视频内容的不断变化用硬件Merge比用软件Merge要有效率得多，下面就是使用Overlay和不使用Overlay的过程：
-![对比图](http://upload-images.jianshu.io/upload_images/16327616-ebaa08beb860a44c.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![对比图](https://raw.githubusercontent.com/pacoblack/BlogImages/master/surface/surface4.jpg)
 这两个的区别在于，有overlay的将Preview、Video data 发送给的是Overlay 层进行单独的处理和显示
 
 ## SurfaceFlinger
 SurfaceFlinger 只是负责 merge Surface 的控制，比如说计算出两个 Surface 重叠的区域，至于 Surface 需要显示的内容，则通过 skia，opengl 和 pixflinger 来计算。
 
 ### 创建过程
-![创建类图](http://upload-images.jianshu.io/upload_images/16327616-1fd1faa0c8c1584d.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![创建类图](https://raw.githubusercontent.com/pacoblack/BlogImages/master/surface/surface5.jpg)
 在IBinder 左边的就是客户端部分，也就是需要窗口显示的应用程序，而右边就是我们的 Surface  Flinger service 。 创建一个surface 分为两个过程，一个是在 SurfaceFlinger 这边为**每个应用程序(Client) 创建一个管理结构**，另一个就是创建**存储内容的buffer** ，以及在这个buffer 上的一系列画图之类的操作。
 
 #### 创建Client
 因为SurfaceFlinger 要管理多个应用程序的多个窗口界面，为了进行管理它提供了一个Client 类，每个来请求服务的应用程序就对应了一个 Client 。因为 surface 是在 SurfaceFlinger 创建的，必须返回一个结构让应用程序知道自己申请的 surface 信息，因此 SurfaceFlinger 将 Client 创建的控制结构per_client_cblk_t 经过 BClient 的封装以后返回给 SurfaceComposerClient ，并向应用程序提供了一组创建和销毁 surface 的接口：
-![Client、BClient 与 SurfaceFlinger](http://upload-images.jianshu.io/upload_images/16327616-eac1e392ef24da6f.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![Client、BClient 与 SurfaceFlinger](https://raw.githubusercontent.com/pacoblack/BlogImages/master/surface/surface6.jpg)
 Flinger 为每个 Client 提供了 8M 的空间，包括控制信息和存储内容的 buffer 。
 为应用程序创建一个 Client 以后，下面需要做的就是为这个 Client 分配 Surface ， 可以理解为创建一个 Surface 就是创建一个 Layer 。
 
 #### 创建 Layer
 创建 Layer 的过程，首先是由这个应用程序的 Client 根据应用程序的 pid 生成一个唯一的 layer ID ，然后根据大小、位置、格式等信息创建出 Layer 。在 Layer 里面有一个嵌套的 Surface 类，它主要包含一个 ISurfaceFlingerClient::Surface_data_t ，包含了这个 Surface 的统一标识符以及 buffer 信息等，提供给应用程序使用。最后应用程序会根据返回来的 ISurface 创建一个自己的 Surface 。
-![Layer 创建过程](http://upload-images.jianshu.io/upload_images/16327616-c5dd1f37b7ff92b4.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![Layer 创建过程](https://raw.githubusercontent.com/pacoblack/BlogImages/master/surface/surface7.jpg)
 Android 提供了 4 种类型的 layer 供选择： Layer ， LayerBlur ， LayerBuffer ， LayerDim ，每个 layer 对应一种类型的窗口，并对应这种窗口相应的操作
     - Normal Layer
        它是 Android 种**使用最多**的一种 Layer ，一般的应用程序在创建 surface 的时候都是采用的这样的 layer ， Normal Layer 为每个 Surface 分配两个 buffer ： front buffer 和 back buffer ， Front buffer 用于 SurfaceFlinger 进行显示，而 Back buffer 用于应用程序进行画图，当 Back buffer 填满数据 (dirty) 以后，就会 flip ， back buffer 就变成了 front buffer 用于显示，而 front buffer 就变成了 back buffer 用来画图。
@@ -158,7 +158,7 @@ SurfaceComposerClient 和 SurfaceFlinger 是通过 SurfaceFlingerSynchro 这个�
 
 #### SurfaceFlinger 的处理
 窗口状态变化的处理是一个很复杂的过程，SurfaceFlinger 只是执行 Windows Manager 的指令，由 Windows manager 来决定什么是偶改变大小、位置、透明度、以及如何调整layer 之间的顺序， SurfaceFlinger 仅仅只是执行它的指令。
-![监听的处理过程](http://upload-images.jianshu.io/upload_images/16327616-3cd7df3b69ffc1c1.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![监听的处理过程](https://raw.githubusercontent.com/pacoblack/BlogImages/master/surface/surface8.jpg)
 前面已经说过了SurfaceFlinger 这个服务在创建的时候会启动一个监听的线程，这个线程负责每次窗口更新时候的处理。
 Android 组合各个窗口的原理:
 **Android 实际上是通过计算每一个窗口的可见区域，就是我们在屏幕上可见的窗口区域 ( 用 Android 的词汇来说就是 visibleRegionScreen ) ，然后将各个窗口的可见区域画到一个主 layer 的相应部分，最后就拼接成了一个完整的屏幕，然后将主 layer 输送到 FB 显示。在将各个窗口可见区域画到主 layer 过程中涉及到一个硬件实现和一个软件实现的问题，如果是软件实现则通过 Opengl 重新画图，其中还包括存在透明度的 alpha 计算；如果实现了 copybit hal 的话，可以直接将窗口的这部分数据直接拷贝过来，并完成可能的旋转，翻转，以及 alhpa计算等。**
@@ -180,17 +180,17 @@ Android 组合各个窗口的原理:
 SurfaceFlinger服务运行在Android系统的System进程中，它负责管理Android系统的帧缓冲区（Frame Buffer）。Android应用程序为了能够将自己的UI绘制在系统的帧缓冲区上，它们就必须要与SurfaceFlinger服务进行通信。
 
 在APP端执行draw的时候，数据很明显是要绘制到APP的进程空间，但是视图窗口要经过SurfaceFlinger图层混排才会生成最终的帧，而SurfaceFlinger又运行在另一个独立的服务进程，那么View视图的数据是如何在两个进程间传递的呢，普通的Binder通信肯定不行，因为Binder不太适合这种数据量较大的通信，那么View数据的通信采用的是什么IPC手段呢？答案就是**共享内存**，更精确的说是匿名共享内存。共享内存是Linux自带的一种IPC机制，Android直接使用了该模型，不过做出了自己的改进，进而形成了Android的匿名共享内存（Anonymous Shared Memory-Ashmem）。通过Ashmem，APP进程同SurfaceFlinger共用一块内存，如此，就不需要进行数据拷贝，APP端绘制完毕，通知SurfaceFlinger端合成，再输出到硬件进行显示即可。
-![View绘制与共享内存](http://upload-images.jianshu.io/upload_images/16327616-abac9840b56cef02?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![View绘制与共享内存](https://raw.githubusercontent.com/pacoblack/BlogImages/master/surface/surface9.jpg)
 
 在每一个Android应用程序与SurfaceFlinger服务之间的连接上加上一块用来传递UI元数据的匿名共享内存，这个共享内存就是 SharedClient
-![shareClient.jpg](https://upload-images.jianshu.io/upload_images/16327616-6d3fdf5f2916b07d.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![shareClient.jpg](https://raw.githubusercontent.com/pacoblack/BlogImages/master/surface/surface10.jpg)
 
 在每一个SharedClient里面，有至多31个SharedBufferStack。SharedBufferStack就是Android应用程序和SurfaceFlinger 的缓冲区堆栈。用来缓冲 UI 元数据。
 一般我们就绘制UI的时候，都会采用一种称为“双缓冲”的技术。双缓冲意味着要使用两个缓冲区，其中一个称为Front Buffer，另外一个称为Back Buffer。
 UI总是先在Back Buffer中绘制，然后再和Front Buffer交换，渲染到显示设备中。这下就可以理解SharedBufferStack的含义了吧？SurfaceFlinger服务只不过是将传统的“双缓冲”技术升华和抽象为了一个SharedBufferStack。可别小看了这个升华和抽象，有了SharedBufferStack之后，SurfaceFlinger 服务就可以使用N个缓冲区技术来绘制UI了。N值的取值范围为2到16。例如，在Android 2.3中，N的值等于2，而在Android 4.1中，据说就等于3了。
 
 在SurfaceFlinger服务中，每一个SharedBufferStack都对应一个Surface，即一个窗口。这样，我们就可以知道为什么每一个SharedClient里面包含的是一系列SharedBufferStack而不是单个SharedBufferStack：**一个SharedClient对应一个Android应用程序，而一个Android应用程序可能包含有多个窗口**，即Surface。从这里也可以看出，一个Android应用程序至多可以包含31个Surface。
-![SharedBufferStack](http://upload-images.jianshu.io/upload_images/16327616-8dd2fa114cd2fe60.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![SharedBufferStack](https://raw.githubusercontent.com/pacoblack/BlogImages/master/surface/surface11.jpg)
 我们假设图中的SharedBufferStack有5个Buffer，其中，Buffer-1和Buffer-2是已经使用了的，而Buffer-3、Buffer-4和Buffer-5是空闲的。指针head和tail分别指向空闲缓冲区列表的头部和尾部，而指针queue_head指向已经使用了的缓冲区列表的头部。从这里就可以看出，从指针tail到head之间的Buffer即为空闲缓冲区表，而从指针head到queue_head之间的Buffer即为已经使用了的缓冲区列表。注意，图中的5个Buffer是循环使用的。
 
 SharedBufferStack中的**缓冲区只是用来描述UI元数据的**，这意味着它们不包含真正的UI数据。**真正的UI数据保存在GraphicBuffer中**，后面我们再描述GaphicBuffer。因此，为了完整地描述一个UI，SharedBufferStack中的每一个已经使用了的缓冲区都对应有一个GraphicBuffer，用来描述真正的UI数据。当SurfaceFlinger服务缓制Buffer-1和Buffer-2的时候，就会找到与它们所对应的GraphicBuffer，这样就可以将对应的UI绘制出来了。
@@ -202,15 +202,15 @@ SurfaceFlinger 服务分配好图形缓冲区 GraphicBuffer 之后，会将它�
 SharedBufferStack 是在 Android 应用程序和 SurfaceFlinger 服务之间共享的，但是，Android 应用程序和 SurfaceFlinger 服务使用 SharedBufferStack 的方式是不一样的，具体来说，就是 **Android 应用程序关心的是它里面的空闲缓冲区列表，而 SurfaceFlinger 服务关心的是它里面的已经使用了的缓冲区列表。**从SurfaceFlinger服务的角度来看，保存在 SharedBufferStack中 的已经使用了的缓冲区其实就是在排队等待渲染。
 
 为了方便 SharedBufferStack 在 Android 应用程序和 SurfaceFlinger 服务中的访问，Android 系统分别使用 SharedBufferClient 和 SharedBufferServer 来描述 SharedBufferStack ，其中，SharedBufferClient 用来在Android 应用程序这一侧访问 SharedBufferStack 的空闲缓冲区列表，而 SharedBufferServer 用来在SurfaceFlinger 服务这一侧访问 SharedBufferStack 的排队缓冲区列表。
-![SharedBufferClient眼中的SharedBufferStack ](http://upload-images.jianshu.io/upload_images/16327616-d5ee8b65c1b9e71d.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![SharedBufferClient眼中的SharedBufferStack ](https://raw.githubusercontent.com/pacoblack/BlogImages/master/surface/surface12.jpg)
 
  只要 SharedBufferStack 中的 available 的 buffer 的数量大于0， SharedBufferClient 就会将指针 tail 往前移一步，并且减少 available 的值，以便可以获得一个空闲的 Buffer。当 Android 应用程序往这个空闲的 Buffer 写入好数据之后，它就会通过 SharedBufferClient 来将它添加到 SharedBufferStack 中的排队缓冲区列表的尾部去，即指针 queue_head 的下一个位置上。
-![SharedBufferServer眼中的SharedBufferStack.jpg](https://upload-images.jianshu.io/upload_images/16327616-0f5d5d4438015d59.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![SharedBufferServer眼中的SharedBufferStack.jpg](https://raw.githubusercontent.com/pacoblack/BlogImages/master/surface/surface13.jpg)
 
  当 Android 应用程序通知 SurfaceFlinger 服务更新UI的时候，只要对应的 SharedBufferStack 中的 queued 的缓冲区的数量大于0，SharedBufferServer 就会将指针 head 的下一个Buffer绘制出来，并且将指针 head 向前移一步，以及将 queued 的值减1。
 
 我们之前多次提到了图形缓冲区 GraphicBuffer ，它是什么东东呢？我们看图
-![GraphicBuffer](https://img-my.csdn.net/uploads/201208/11/1344643974_9844.jpg)
+![GraphicBuffer](https://raw.githubusercontent.com/pacoblack/BlogImages/master/surface/surface14.jpg)
 每一个GraphicBuffer内部都包含有一块用来保存UI数据的缓冲区，这块缓冲区使用一个buffer_handle_t对象来描述。看到buffer_handle_t，是不是有点眼熟？在前面Android帧缓冲区（Frame Buffer）硬件抽象层（HAL）模块Gralloc的实现原理分析一文中，我们说过，**由HAL层的Gralloc模块分配的图形缓冲区的是使用一个buffer_handle_t对象来描述的**，而由buffer_handle_t对象所描述的图形缓冲区要么是在系统帧缓冲区（Frame Buffer）或者匿名共享内存（Anonymous Shared Memory）中分配的。这样，我们就可以将SurfaceFlinger服务与HAL层中的Gralloc模块关联起来了。
 
 # Vsync(垂直同步信号)
@@ -224,7 +224,7 @@ SharedBufferStack 是在 Android 应用程序和 SurfaceFlinger 服务之间共�
 手机屏幕刷新率是固定的，FPS 则是一直变化的，怎么才能保证能够运行流畅呢？从几个例子来看吧。
 
 ## 无VSync机制
-![](https://coolegos.github.io/img/vsync_1.png)
+![](https://raw.githubusercontent.com/pacoblack/BlogImages/master/surface/surface15.png)
 先解释图片代表的意思：最下面黑线代表的是时间，黄色代表屏幕展示，绿色代表GPU 处理，蓝色代表CPU 处理。Jank 代表的是重复展示上一帧的异常。下面会从屏幕展示的每一帧开始分析
 
 没有引入VSync 机制的处理流程如下：
@@ -237,10 +237,10 @@ SharedBufferStack 是在 Android 应用程序和 SurfaceFlinger 服务之间共�
 ## 引入VSync 机制
 VSync 可以简单的认为是一种定时中断，系统在每次需要绘制的时候都会发送VSync Pulse 信号，cpu/gpu 收到信号后马上处理绘制。
 ### 正常情况下
-![](https://coolegos.github.io/img/vsync_2.png)
+![](https://raw.githubusercontent.com/pacoblack/BlogImages/master/surface/surface16.png)
 
 ### Double Buffering 异常情况
-![](https://coolegos.github.io/img/vsync_3.png)
+![](https://raw.githubusercontent.com/pacoblack/BlogImages/master/surface/surface17.png)
 VSync 机制下Double Buffering 时FPS > 手机屏幕刷新率的情况。
 1. Display 展示第A 帧数据，cpu/gpu 收到VSync Pulse 信号马上处理B 帧的数据，但是由于计算太多，导致没有在一个VSync 间隔内处理完。
 2. 由于第B 帧数据没有处理好，Display 继续展示第A 帧数据(此时屏幕显示是异常的)。由于系统中只存在一块内存给cpu/gpu 处理绘制，所以在这个VSync 间隔内cpu 不处理任何事。
@@ -249,7 +249,7 @@ VSync 机制下Double Buffering 时FPS > 手机屏幕刷新率的情况。
 上图中一个很明显的问题是，只要出现一次Jank 就会影响下一次的VSync(cpu 不能工作)
 
 ### Triple Buffering 异常情况
-![](https://coolegos.github.io/img/vsync_4.png)
+![](https://raw.githubusercontent.com/pacoblack/BlogImages/master/surface/surface18.png)
 1. Display 展示第A 帧数据，cpu/gpu 收到VSync Pulse 信号马上处理B 帧的数据，但是由于计算太多，导致没有在一个VSync 间隔内处理完。
 2. 由于第B 帧数据没有准备好，Display 继续展示第A 帧数据(此时屏幕显示是异常的)。此时虽然B 被gpu 在使用，但是cpu 可以处理Buffer C(因为有3个缓冲)。
 3. Display 展示第B 帧数据，gpu 继续处理上一步骤的C，cpu 则处理A。
@@ -733,6 +733,6 @@ private static final class CallbackRecord {
       }
   }
 ```
-![](https://img-blog.csdnimg.cn/20200821112357259.png#pic_center)
+![](https://raw.githubusercontent.com/pacoblack/BlogImages/master/surface/surface19.png)
 参考：
 [https://blog.csdn.net/luoshengyang/article/details/7846923](https://blog.csdn.net/luoshengyang/article/details/7846923)

@@ -94,7 +94,9 @@ DexposedBridge.hookAllConstructors(Thread.class, new XC_MethodHook() {
 
 # 稳定性优化
 ## native崩溃信号
->#define SIGHUP 1  // 终端连接结束时发出(不管正常或非正常)
+
+```
+#define SIGHUP 1  // 终端连接结束时发出(不管正常或非正常)
 #define SIGINT 2  // 程序终止(例如Ctrl-C)
 #define SIGQUIT 3 // 程序退出(Ctrl-\)
 #define SIGILL 4 // 执行了非法指令，或者试图执行数据段，堆栈溢出
@@ -127,3 +129,4 @@ DexposedBridge.hookAllConstructors(Thread.class, new XC_MethodHook() {
 #define SIGPOLL SIGIO // 同上，别称
 #define SIGPWR 30 // 电源异常
 #define SIGSYS 31 // 非法的系统调用
+```
