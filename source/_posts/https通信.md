@@ -11,7 +11,7 @@ categories:
 主要介绍https的通信过程
 
 <!--more-->
-![图示流程](https://upload-images.jianshu.io/upload_images/2829175-9385a8c5e94ad1da.png)
+![图示流程](https://raw.githubusercontent.com/pacoblack/BlogImages/master/https/https1.png)
 
 现在来介绍主要流程：
 1. client Hello, 浏览器向服务器发起加密通信请求， 其中包括：
@@ -41,14 +41,14 @@ categories:
     > Master secret 由于服务端和客户端都有一份相同的PreMaster secret和随机数，这个随机数将作为后面产生Master secret的种子，结合PreMaster secret，客户端和服务端将计算出同样的Master secret。Master secret是一系列的hash值组成的，它将作为数据加解密相关的secret的 Key Material 的一部分。
 
     > master_secret = PRF(pre_master_secret,"master secret", ClientHello.random +  ServerHello.random)
-![Master secret](https://www.linuxidc.com/upload/2015_07/15072110389322.png)
+![Master secret](https://raw.githubusercontent.com/pacoblack/BlogImages/master/https/https2.png)
 5. 客户端回应
     如果证书没有问题，客户端就会从服务器证书中取出服务器的公钥。然后，向服务器发送下面三项信息：
     - PreMaster Secret。该随机数用服务器公钥加密，防止被窃听
     - 编码改变通知，表示随后的信息都将用双方商定的加密方法和密钥发送
     - 客户端握手结束通知，表示客户端的握手阶段已经结束。这一项同时也是前面发送的所有内容的hash值，用来供服务器校验
 
-![ChangeCipherSpec](https://www.linuxidc.com/upload/2016_05/16050821032069.png)
+![ChangeCipherSpec](https://raw.githubusercontent.com/pacoblack/BlogImages/master/https/https3.png)
 ***ChangeCipherSpec***  
 - ChangeCipherSpec是一个独立的协议，体现在数据包中就是一个字节的数据，用于告知服务端，客户端已经切换到之前协商好的加密套件（Cipher Suite）的状态，准备使用之前协商好的加密套件加密数据并传输了。
 在ChangecipherSpec传输完毕之后，客户端会使用之前协商好的加密套件和Session Secret加密一段 Finish 的数据传送给服务端，此数据是为了在正式传输应用数据之前对刚刚握手建立起来的加解密通道进行验证。
