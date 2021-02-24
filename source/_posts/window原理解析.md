@@ -10,13 +10,13 @@ categories:
 分析下window原理
 <!--more-->
 # Touch简介
-![Activity与Window.jpg](https://upload-images.jianshu.io/upload_images/16327616-bd8c6d51bfb58c44.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![Activity与Window.jpg](https://raw.githubusercontent.com/pacoblack/BlogImages/master/touch/touch2.jpg)
 
 我们已知[touch 事件起始](https://www.jianshu.com/p/1c127769c9ea)是 Activity -> PhoneWindow -> DecorView -> (TitleView + ContentView) 传递的，但是这个touch事件的源头是哪里呢，是从Window中获取的
 
 这里我们只关注Window相关。
 # Window介绍
-![window关系图](http://upload-images.jianshu.io/upload_images/16327616-edfd4d18bd926208?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![window关系图](https://raw.githubusercontent.com/pacoblack/BlogImages/master/touch/touch3.png)
 ## WindowManager
 Android中基本上**所有的View都是通过Window来呈现的**，不管是Activity、Toast还是Dialog，它们的视图都是附加到Window上的，因此可以将Window理解为View的承载者与直接管理者。而Window需要WindowManager协助完成，这里它的实现类是 WindowManagerImpl . 而 WindowManagerImpl 通过 getSystemService(Context.WINDOW_SERVICE) 来得到。
 
@@ -107,7 +107,7 @@ synchronized (mLock) {
 ```
 3. 通过 ViewRootImpl 来更新界面并完成 Window 的添加过程
 ViewRootImpl 不是View，实际上是顶级View的管理者。每一个 ViewRootImpl 都对应着一个ViewTree ，通过它来完成 View 的绘制及显示过程。下图展示了它与WM、WMS之间的关系:
-![ViewRootImpl 关系图](http://upload-images.jianshu.io/upload_images/16327616-4067cf7cda3d468a?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![ViewRootImpl 关系图](https://raw.githubusercontent.com/pacoblack/BlogImages/master/touch/touch4.png)
 
 Window是一个抽象的概念，**每一个Window都对应着一个 View 和 ViewRootImpl ，Window与View通过 ViewRootImpl 建立起联系**，Window 是以 View 作为实体存在，实际使用WindowManager访问来Window，外部无法直接访问Window。
 
@@ -161,7 +161,7 @@ res = mWindowSession.addToDisplay(mWindow, mSeq, mWindowAttributes,
                             mAttachInfo.mOutsets, mAttachInfo.mDisplayCutout, mInputChannel);
 ```
 addToDisplay 中Session 会通过 addWindow 方法将 Window 添加到 WindowManagerService 中，WindowManagerService会为每个应用保留一个单独的Session。
-![委托流程](http://upload-images.jianshu.io/upload_images/16327616-090dcf85dea2d9bd?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![委托流程](https://raw.githubusercontent.com/pacoblack/BlogImages/master/touch/touch5.png)
 最终，Window 的添加请求移交给 WindowManagerService 手上。
 
 ## removeView
@@ -382,5 +382,6 @@ Toast 毕竟是要在 Window 中实现的，因此它最终还是要依附于 Wi
 答：我们知道android重绘有两个重要的ViewRootImpl方法，一是 requestLayout，一个是invalidate，（requestLayout 只会调用 onMeasure、onLayout，而 invalidate 会调用 onDraw），在 ViewRootImpl.requestLayout 中首先执行的就是 checkThread 方法，也就是用来抛出 CalledFromWrongThreadException 异常的，根据上面的总结我们知道，ViewRootImpl 是在 onResume 的时候创建的，在 onCreate 的时候还没有创建，也就没有办法调用 checkThread
 
 # 补充
-![touch事件传递处理](https://upload-images.jianshu.io/upload_images/944365-6ec2e864af7ffd37.png)
-![touch](http://gityuan.com/images/touch/touch1.jpg)
+![touch事件传递处理](https://raw.githubusercontent.com/pacoblack/BlogImages/master/touch/touch1.png)
+![touch事件传递处理](https://raw.githubusercontent.com/pacoblack/BlogImages/master/touch/touch6.png)
+![touch](https://raw.githubusercontent.com/pacoblack/BlogImages/master/touch/touch7.jpg)
