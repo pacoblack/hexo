@@ -38,6 +38,7 @@ Flutter 有 Flutter 的 Application 和 Flutter 的 Activity。在 Flutter Appli
 引擎中，Flutter 四个核心线程：平台线程、UI 线程、GPU 线程、IO 线程，它们各有分工：
 - 平台线程，对于安卓和 iOS 来说就是常说的主线程，
 一般来说，一个Flutter应用启动的时候会创建一个Engine实例，Engine创建的时候会创建一个线程供 Platform Runner 使用。跟Flutter Engine的所有交互（接口调用）必须在 Platform Thread 进行，否则可能导致无法预期的异常。这跟iOS UI相关的操作都必须在主线程进行相类似。需要注意的是在Flutter Engine中有很多模块都是非线程安全的。规则很简单，对于Flutter Engine的接口调用都需保证在Platform Thread进行。阻塞 Platform Thread 不会直接导致Flutter应用的卡顿（跟iOS android主线程不同）。尽管如此，也不建议在这个Runner执行繁重的操作，长时间卡住Platform Thread应用有可能会被系统Watchdog强杀。
+实际上我们可以同时启动多个Engine实例，每个Engine对应一个Platform Runxner，每个Runner跑在各自的线程里。
 - UI 线程，面对安卓本身的主线程，就是一个独立的线程；UI Task Runner用于执行Dart root isolate代码
 Root isolate比较特殊，它绑定了不少Flutter需要的函数方法，以便进行渲染相关操作。对于每一帧，引擎要做的事情有：
     1. Root isolate通知Flutter Engine有帧需要渲染。
@@ -46,20 +47,14 @@ Root isolate比较特殊，它绑定了不少Flutter需要的函数方法，以�
     4. 对创建的对象和Widgets进行Layout并生成一个Layer Tree，这个Tree马上被提交给Flutter Engine。当前阶段没有进行任何光栅化，这个步骤仅是生成了对需要绘制内容的描述。
     5. 创建或者更新Tree，这个Tree包含了用于屏幕上显示Widgets的语义信息。这个东西主要用于平台相关的辅助Accessibility元素的配置和渲染。
 除了渲染相关逻辑之外Root Isolate还是处理来自Native Plugins的消息，Timers，Microtasks和异步IO等操作。Root Isolate负责创建管理的Layer Tree最终决定绘制到屏幕上的内容。因此这个线程的过载会直接导致卡顿掉帧。
-- GPU 线程，指的是跑在 CPU 上的线程，它做的主要是 Skia 相关工作。
+- GPU 线程，指的是跑在 GPU 上的线程，它做的主要是 Skia 相关工作。
 UI Task Runner创建的Layer Tree是跨平台的，它不关心到底由谁来完成绘制。GPU Task Runner负责将Layer Tree提供的信息转化为平台可执行的GPU指令。GPU Task Runner同时负责绘制所需要的GPU资源的管理。资源主要包括平台Framebuffer，Surface，Texture和Buffers等。
-
 一般来说UI Runner和GPU Runner跑在不同的线程。GPU Runner会根据目前帧执行的进度去向UI Runner要求下一帧的数据，在任务繁重的时候可能会告诉UI Runner延迟任务。这种调度机制确保GPU Runner不至于过载，同时也避免了UI Runner不必要的消耗。
-
 建议为每一个Engine实例都新建一个专用的GPU Runner线程。
-
 - IO 线程，比如图片解码、编解码，主要做 IO 相关的工作。
 Platform Runner过载可能导致系统WatchDog强杀，UI和GPU Runner过载则可能导致Flutter应用的卡顿。但是GPU线程的一些必要操作，例如IO，放到哪里执行呢？答案正是IO Runner。
-
 IO Runner的主要功能是从图片存储（比如磁盘）中读取压缩的图片格式，将图片数据进行处理为GPU Runner的渲染做好准备。IO Runner首先要读取压缩的图片二进制数据（比如PNG，JPEG），将其解压转换成GPU能够处理的格式然后将数据上传到GPU。
-
 获取诸如ui.Image这样的资源只有通过async call去调用，当调用发生的时候Flutter Framework告诉IO Runner进行加载的异步操作。
-
 IO Runner直接决定了图片和其它一些资源加载的延迟间接影响性能。所以建议为IO Runner创建一个专用的线程。
 
 # 线程框架
