@@ -9,6 +9,33 @@ categories:
 ---
 对之前遇到的优化进行一个小结
 <!--more-->
+# apk瘦身
+1. 开启混淆压缩
+2. D8/R8优化
+```
+#开启D8优化
+android.enableD8 = true
+
+#R8优化
+android.enableR8=true
+android.enableR8.libraries=true
+```
+ProGuard 和 R8 都应用了基本名称混淆：它们 都使用简短，无意义的名称重命名类，字段和方法。他们还可以 删除调试属性。但是，R8 在 inline 内联容器类中更有效，并且在删除未使用的类，字段和方法上则更具侵略性。
+3. 通过ReDex去除debug信息与行号信息
+4. 通过ReDex将有调用关系的类和方法分配到同一个 Dex 中，从而实现分包优化
+5. 通过ThinRPlugin进行R Field的内联优化（它解决了 R Field 过多导致 MultiDex 65536 的问题）
+6. XZ Utils进行Dex压缩 - 使用了 LZMA/LZMA2 算法。LZMA 提供了高压缩比和快速解压缩，因此非常适合嵌入式应用。
+7. 只引入需要的第三方库来减少包大小
+8. 通过Lint监测无效代码，删除无用的代码
+9. 通过Lint删除冗余资源，android-arscblamer删除没有用到的资源，并解析resources.arsc中可以优化的部分
+10. 通过android-chunk-utils优化重复的资源，首先需要通过资源包中的每个ZipEntry的CRC-32 checksum来筛选出重复的资源。
+11. 通过AndroidResGuard进行资源混淆
+12. 通过TinyPngPlugin等进行图片压缩，通过不同的图片格式进行优化
+13. 对resources.arsc进行压缩优化
+14. 通过ByteX的access_inline插件避免产生Java access方法（Java 编译器在编译过程中自动生成 package 可见性的静态 access$xxx 方法，并且在需要访问对方私有成员的地方改为调用对应的 access 方法。）
+15. so优化：尽量只用armeabi架构，使用XZ Utils进行压缩，删除无用的symbol，动态加载
+
+
 # 绘制优化
 
 ## 刷新机制
