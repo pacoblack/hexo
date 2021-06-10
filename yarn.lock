@@ -1240,7 +1240,7 @@ entities@1.0:
   resolved "https://registry.npm.taobao.org/entities/download/entities-1.0.0.tgz#b2987aa3821347fcde642b24fdfc9e4fb712bf26"
   integrity sha1-sph6o4ITR/zeZCsk/fyeT7cSvyY=
 
-entities@^1.1.1, entities@^1.1.2, entities@~1.1.1:
+entities@^1.1.1, entities@~1.1.1:
   version "1.1.2"
   resolved "https://registry.npm.taobao.org/entities/download/entities-1.1.2.tgz?cache=0&sync_timestamp=1563403318326&other_urls=https%3A%2F%2Fregistry.npm.taobao.org%2Fentities%2Fdownload%2Fentities-1.1.2.tgz#bdfa735299664dfafd34529ed4f8522a275fea56"
   integrity sha1-vfpzUplmTfr9NFKe1PhSKidf6lY=
@@ -1774,13 +1774,12 @@ has-yarn@^2.1.0:
   resolved "https://registry.npm.taobao.org/has-yarn/download/has-yarn-2.1.0.tgz#137e11354a7b5bf11aa5cb649cf0c6f3ff2b2e77"
   integrity sha1-E34RNUp7W/EapctknPDG8/8rLnc=
 
-hexo-asset-image@^1.0.0:
-  version "1.0.0"
-  resolved "https://registry.npm.taobao.org/hexo-asset-image/download/hexo-asset-image-1.0.0.tgz#f229ad28b071a32b1d5b121f929a296e714fd24a"
-  integrity sha1-8imtKLBxoysdWxIfkpopbnFP0ko=
+"hexo-asset-image@git+https://github.com/7ym0n/hexo-asset-image.git":
+  version "0.0.3"
+  uid "6c88c98214765112d148850a646ddca379fcdcfe"
+  resolved "git+https://github.com/7ym0n/hexo-asset-image.git#6c88c98214765112d148850a646ddca379fcdcfe"
   dependencies:
     cheerio "^0.19.0"
-    entities "^1.1.2"
 
 hexo-bunyan@^1.0.0:
   version "1.0.0"
@@ -3200,9 +3199,9 @@ normalize-path@^3.0.0, normalize-path@~3.0.0:
   integrity sha1-Dc1p/yOhybEf0JeDFmRKA4ghamU=
 
 normalize-url@^4.1.0:
-  version "4.5.0"
-  resolved "https://registry.npm.taobao.org/normalize-url/download/normalize-url-4.5.0.tgz#453354087e6ca96957bd8f5baf753f5982142129"
-  integrity sha1-RTNUCH5sqWlXvY9br3U/WYIUISk=
+  version "4.5.1"
+  resolved "https://registry.yarnpkg.com/normalize-url/-/normalize-url-4.5.1.tgz#0dd90cf1288ee1d1313b87081c9a5932ee48518a"
+  integrity sha512-9UZCFRHQdNrfTpGg8+1INIg93B6zE0aXMVFkw1WFwvO4SlZywU6aLg5Of0Ap/PgcbSw4LNxvMWXMeugwMCX0AA==
 
 npm-bundled@^1.0.1:
   version "1.0.6"
