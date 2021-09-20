@@ -684,15 +684,6 @@ cli-width@^2.0.0:
   resolved "https://registry.npm.taobao.org/cli-width/download/cli-width-2.2.1.tgz?cache=0&sync_timestamp=1586877902436&other_urls=https%3A%2F%2Fregistry.npm.taobao.org%2Fcli-width%2Fdownload%2Fcli-width-2.2.1.tgz#b0433d0b4e9c847ef18868a4ef16fd5fc8271c48"
   integrity sha1-sEM9C06chH7xiGik7xb9X8gnHEg=
 
-clipboard@^2.0.0:
-  version "2.0.6"
-  resolved "https://registry.npm.taobao.org/clipboard/download/clipboard-2.0.6.tgz#52921296eec0fdf77ead1749421b21c968647376"
-  integrity sha1-UpISlu7A/fd+rRdJQhshyWhkc3Y=
-  dependencies:
-    good-listener "^1.2.2"
-    select "^1.1.2"
-    tiny-emitter "^2.0.0"
-
 cliui@^2.1.0:
   version "2.1.0"
   resolved "https://registry.npm.taobao.org/cliui/download/cliui-2.1.0.tgz#4b475760ff80264c762c3a1719032e91c7fea0d1"
@@ -1053,11 +1044,6 @@ define-property@^2.0.2:
     is-descriptor "^1.0.2"
     isobject "^3.0.1"
 
-delegate@^3.1.2:
-  version "3.2.0"
-  resolved "https://registry.npm.taobao.org/delegate/download/delegate-3.2.0.tgz#b66b71c3158522e8ab5744f720d8ca0c2af59166"
-  integrity sha1-tmtxwxWFIuirV0T3INjKDCr1kWY=
-
 delegates@^1.0.0:
   version "1.0.0"
   resolved "https://registry.npm.taobao.org/delegates/download/delegates-1.0.0.tgz#84c6e159b81904fdca59a0ef44cd870d31250f9a"
@@ -1240,7 +1226,7 @@ entities@1.0:
   resolved "https://registry.npm.taobao.org/entities/download/entities-1.0.0.tgz#b2987aa3821347fcde642b24fdfc9e4fb712bf26"
   integrity sha1-sph6o4ITR/zeZCsk/fyeT7cSvyY=
 
-entities@^1.1.1, entities@^1.1.2, entities@~1.1.1:
+entities@^1.1.1, entities@~1.1.1:
   version "1.1.2"
   resolved "https://registry.npm.taobao.org/entities/download/entities-1.1.2.tgz?cache=0&sync_timestamp=1563403318326&other_urls=https%3A%2F%2Fregistry.npm.taobao.org%2Fentities%2Fdownload%2Fentities-1.1.2.tgz#bdfa735299664dfafd34529ed4f8522a275fea56"
   integrity sha1-vfpzUplmTfr9NFKe1PhSKidf6lY=
@@ -1682,13 +1668,6 @@ global-dirs@^0.1.0:
   dependencies:
     ini "^1.3.4"
 
-good-listener@^1.2.2:
-  version "1.2.2"
-  resolved "https://registry.npm.taobao.org/good-listener/download/good-listener-1.2.2.tgz#d53b30cdf9313dffb7dc9a0d477096aa6d145c50"
-  integrity sha1-1TswzfkxPf+33JoNR3CWqm0UXFA=
-  dependencies:
-    delegate "^3.1.2"
-
 got@^9.6.0:
   version "9.6.0"
   resolved "https://registry.npm.taobao.org/got/download/got-9.6.0.tgz#edf45e7d67f99545705de1f7bbeeeb121765ed85"
@@ -1774,13 +1753,12 @@ has-yarn@^2.1.0:
   resolved "https://registry.npm.taobao.org/has-yarn/download/has-yarn-2.1.0.tgz#137e11354a7b5bf11aa5cb649cf0c6f3ff2b2e77"
   integrity sha1-E34RNUp7W/EapctknPDG8/8rLnc=
 
-hexo-asset-image@^1.0.0:
-  version "1.0.0"
-  resolved "https://registry.npm.taobao.org/hexo-asset-image/download/hexo-asset-image-1.0.0.tgz#f229ad28b071a32b1d5b121f929a296e714fd24a"
-  integrity sha1-8imtKLBxoysdWxIfkpopbnFP0ko=
+"hexo-asset-image@git+https://github.com/7ym0n/hexo-asset-image.git":
+  version "0.0.3"
+  uid "6c88c98214765112d148850a646ddca379fcdcfe"
+  resolved "git+https://github.com/7ym0n/hexo-asset-image.git#6c88c98214765112d148850a646ddca379fcdcfe"
   dependencies:
     cheerio "^0.19.0"
-    entities "^1.1.2"
 
 hexo-bunyan@^1.0.0:
   version "1.0.0"
@@ -3686,11 +3664,9 @@ pretty-hrtime@^1.0.3:
   integrity sha1-t+PqQkNaTJsnWdmeDyAesZWALuE=
 
 prismjs@^1.17.1:
-  version "1.20.0"
-  resolved "https://registry.npm.taobao.org/prismjs/download/prismjs-1.20.0.tgz?cache=0&other_urls=https%3A%2F%2Fregistry.npm.taobao.org%2Fprismjs%2Fdownload%2Fprismjs-1.20.0.tgz#9b685fc480a3514ee7198eac6a3bf5024319ff03"
-  integrity sha1-m2hfxICjUU7nGY6sajv1AkMZ/wM=
-  optionalDependencies:
-    clipboard "^2.0.0"
+  version "1.25.0"
+  resolved "https://registry.yarnpkg.com/prismjs/-/prismjs-1.25.0.tgz#6f822df1bdad965734b310b315a23315cf999756"
+  integrity sha512-WCjJHl1KEWbnkQom1+SzftbtXMKQoezOCYs5rECqMN+jP+apI7ftoflyqigqzopSO3hMhTEb0mFClA8lkolgEg==
 
 process-nextick-args@~2.0.0:
   version "2.0.1"
@@ -4069,11 +4045,6 @@ sax@^1.2.4, sax@~1.2.4:
   version "1.2.4"
   resolved "https://registry.npm.taobao.org/sax/download/sax-1.2.4.tgz#2816234e2378bddc4e5354fab5caa895df7100d9"
   integrity sha1-KBYjTiN4vdxOU1T6tcqold9xANk=
-
-select@^1.1.2:
-  version "1.1.2"
-  resolved "https://registry.npm.taobao.org/select/download/select-1.1.2.tgz#0e7350acdec80b1108528786ec1d4418d11b396d"
-  integrity sha1-DnNQrN7ICxEIUoeG7B1EGNEbOW0=
 
 semver-diff@^2.0.0:
   version "2.1.0"
@@ -4575,11 +4546,6 @@ tildify@^1.2.0:
   integrity sha1-3OwD9V3Km3qj5bBPIYF+tW5jWIo=
   dependencies:
     os-homedir "^1.0.0"
-
-tiny-emitter@^2.0.0:
-  version "2.1.0"
-  resolved "https://registry.npm.taobao.org/tiny-emitter/download/tiny-emitter-2.1.0.tgz#1d1a56edfc51c43e863cbb5382a72330e3555423"
-  integrity sha1-HRpW7fxRxD6GPLtTgqcjMONVVCM=
 
 titlecase@^1.1.2:
   version "1.1.3"
