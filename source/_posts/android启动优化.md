@@ -474,6 +474,28 @@ https://github.com/lanshifu/MultiDexTest
 ### 抖音BoostMultiDex优化
 https://juejin.cn/post/6844904079206907911
 
+#### 启动慢的原因
+首先需要清楚的是，在 Java 里面想要访问一个类，必然是需要通过 ClassLoader 来加载它们才能访问到。在 Android 上，APP 里面的类都是由PathClassLoader负责加载的。而类都是依附于 DEX 文件而存在的，只有加载了相应的 DEX，才能对其中的类进行使用。
+Android 早期对于 DEX 的指令格式设计并不完善，单个 DEX 文件中引用的 Java 方法总数不能超过 65536 个。
+对于现在的 APP 而言，只要功能逻辑多一些，很容易就会触达这个界限。
+这样，如果一个 APP 的 Java 代码的方法数超过了 65536 个，这个 APP 的代码就无法被一个 DEX 文件完全装下，那么，我们在编译期间就不得不生成多个 DEX 文件。
+Android 4.4 及以下采用的是 Dalvik 虚拟机，在通常情况下，Dalvik 虚拟机只能执行做过 OPT 优化的 DEX 文件，也就是我们常说的 ODEX 文件。
+一个 APK 在安装的时候，其中的classes.dex会自动做 ODEX 优化，并在启动的时候由系统默认直接加载到 APP 的PathClassLoader里面，因此classes.dex中的类肯定能直接访问，不需要我们操心。
+除它之外的 DEX 文件，也就是classes2.dex、classes3.dex、classes4.dex等 DEX 文件（这里我们统称为 Secondary DEX 文件），这些文件都需要靠我们自己进行 ODEX 优化，并加载到 ClassLoader 里，才能正常使用其中的类。否则在访问这些类的时候，就会抛出ClassNotFound异常从而引起崩溃。
+因此，Android 官方推出了 MultiDex 方案。只需要在 APP 程序执行最早的入口，也就是Application.attachBaseContext里面直接调MultiDex.install，它会解开 APK 包，对第二个以后的 DEX 文件做 ODEX 优化并加载。这样，带有多个 DEX 文件的 APK 就可以顺利执行下去了。
+这个操作会在 APP 安装或者更新后首次冷启动的时候发生，正是由于这个过程耗时漫长，才导致了我们最开始提到的耗时黑屏问题。
+
+#### 优化思路
+1. 将APK 里面的所有classes2.dex、classes3.dex、classes4.dex等 DEX 文件都会被解压出来。
+2. 对每个 dex 进行 ZIP 压缩。生成 classesN.zip 文件。
+3. 对每个 ZIP 文件做 ODEX 优化，生成 classesN.zip.odex 文件。
+这一步是通过`DexFile.loadDex`方法实现的，只需要指定原始 ZIP 文件和 ODEX 文件的路径，就能够根据 ZIP 中的 DEX 生成相应的 ODEX 产物，这个方法会最终返回一个DexFile对象。
+4. APP 把这些DexFile对象都添加到PathClassLoader的pathList里面，就可以让 APP 在运行期间，通过ClassLoader加载使用到这些 DEX 中的类.
+
+#### 优化策略
+- 模块懒加载：一般是把一级界面的 Activity、Service、Receiver、Provider 涉及到的代码都放到第一个 DEX 中，而把二级、三级页面的 Activity 以及非高频界面的代码放到了 Secondary DEX 中。
+当后面需要执行某个模块的时候，先判断这个模块的 Class 是否已经加载完成，如果没有完成，就等待 install 完成后再继续执行。
+- 最终方案
 1. 在第一次启动的时候，直接加载没有经过 OPT 优化的原始 DEX，先使得 APP 能够正常启动。
 2. 在后台启动一个单独进程，慢慢地做完 DEX 的 OPT 工作，尽可能避免影响到前台 APP 的正常使用。
 绕过 ODEX 直接加载 DEX 的方案如下：
@@ -482,6 +504,7 @@ https://juejin.cn/post/6844904079206907911
 3）在数组中查询得到Dalvik_dalvik_system_DexFile_openDexFile_bytearray函数
 4）调用该函数，逐个传入之前从 APK 获取的 DEX 字节码，完成 DEX 加载，得到合法的DexFile对象
 5）把DexFile对象都添加到 APP 的PathClassLoader的 pathList 里
+
 
 ## 类预加载优化
 在Application中提前异步加载初始化耗时较长的类。
