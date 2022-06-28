@@ -21,7 +21,52 @@ Glide.with(fragment)
 Glide是一个性能优良的第三方网络图片加载框架，在节省内存和快速流畅加载方面具有较好体现。究其内部机制，发现其优良性能得益于以下几点：
 1. 与使用环境生命周期相绑定：RequestManagerFragment & SupportRequestManagerFragment
 2. 内存的三级缓存池：LruMemoryResources, ActiveResources, BitmapPool
-3. 内存复用机制：BitmapPool
+3. 内存复用机制：BitmapPool、ArrayPool
+![缓存示意图](glide-cache-arch.png)
+注意：完成解码的图片resource并不是一开始就被添加到cache，而是先添加到active resource。当resource被释放时，如果可缓存则添加到cache，如果不可缓存则经由recycler回收至bitmapPool
+
+## 缓存策略简介
+GlideBuilder允许自定义缓存策略。如果没有自定义缓存策略，使用内置的缓存策略。
+```java
+public final class GlideBuilder {
+
+    public Glide build(Context context) {
+        ...
+    
+        if (memorySizeCalculator == null) {
+          memorySizeCalculator = new MemorySizeCalculator.Builder(context).build();
+        }
+        //如果resource不可缓存则经由recycler回收至bitmapPool，回收时需要
+        if (bitmapPool == null) {
+          int size = memorySizeCalculator.getBitmapPoolSize();
+          bitmapPool = new LruBitmapPool(size);
+        }
+        //防止图片操作导致内存抖动和频繁GC，解码时需要
+        if (arrayPool == null) {
+          arrayPool = new LruArrayPool(memorySizeCalculator.getArrayPoolSizeInBytes());
+        }
+
+        if (memoryCache == null) {
+          memoryCache = new LruResourceCache(memorySizeCalculator.getMemoryCacheSize());
+        }
+    
+        if (diskCacheFactory == null) {
+          diskCacheFactory = new InternalCacheDiskCacheFactory(context);
+        }
+    
+        ...
+        engine = new Engine(memoryCache, diskCacheFactory, diskCacheExecutor, sourceExecutor,
+              GlideExecutor.newUnlimitedSourceExecutor());
+    
+    
+        RequestManagerRetriever requestManagerRetriever = new RequestManagerRetriever(
+            requestManagerFactory);
+    
+        return new Glide(...);
+    }
+}
+```
+**BitmapPool出现在有Bitmap回收需求的地方，而ArrayPool则出现在有解码需求的地方。**
 
 # 绑定生命周期
 ![glide_lifecycle.jpg](https://raw.githubusercontent.com/pacoblack/BlogImages/master/glide/glide2.jpg)
@@ -151,6 +196,7 @@ Glide是一个性能优良的第三方网络图片加载框架，在节省内存
 `RequestManager.track() ` ->
 `RequestTracker.runRequest()` 来启动请求
 这个request 一般都是从 `SingleRequest`的 `begin`开始，在 `onSizeReady` 中委托 `engine.load()` 方法
+注意：根据buildKey，同一张图片加载到2个不同大小的ImageView会生成2个缓存图片
 ```
   public synchronized <R> LoadStatus load(
       GlideContext glideContext,
