@@ -8,6 +8,7 @@ categories:
 - java
 ---
 内存模型从入门到放弃
+![模型](jvm_all.jpg)
 <!--more-->
 # 内存结构
 ## JVM 运行时数据区
@@ -567,6 +568,7 @@ public class SynchronizedDemo {
 3. 如果其他线程已经占用了monitor，则该线程进入阻塞状态，直到monitor的进入数为0，再重新尝试获取monitor的所有权。
 
 ## 锁
+![锁](lock_all.jpg)
 锁的状态总共有四种：无锁状态、偏向锁、轻量级锁和重量级锁。随着锁的竞争，锁可以从偏向锁 -> 轻量级锁
  -> 重量级锁（但是锁的升级是单向的，也就是说只能从低到高升级，*不会出现锁的降级*）。JDK 1.6中默认是开启偏向锁和轻量级锁的，我们也可以通过-XX:-UseBiasedLocking来禁用偏向锁。锁的状态保存在**对象头**中，剩下的就是指向方法区对象类型数据的指针，以32位的JDK为例：![Mark Word](https://raw.githubusercontent.com/pacoblack/BlogImages/master/jvm/jvm24.png)
 **无锁与偏向锁的区别是有没有线程ID**
