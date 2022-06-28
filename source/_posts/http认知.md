@@ -74,7 +74,29 @@ HTTP/2 虽然具有多个流并发传输的能力，但是传输层是 TCP 协�
 - *TCP 和 TLS 握手时延*，TCL 三次握手和 TLS 四次握手，共有 3-RTT 的时延；
 - *连接迁移需要重新连接*，移动设备从 4G 网络环境切换到 WIFI 时，由于 TCP 是基于四元组来确认一条 TCP 连接的，那么网络环境变化后，就会导致 IP 地址或端口变化，于是 TCP 只能断开连接，然后再重新建立连接，切换网络环境的成本高；
 
-
 # 附图
 ![连接demo](quic_vs_tcp.webp)
 ![比较报文](http2_vs_http3.jpeg)
+
+# QUIC的无队头阻塞解决方案
+QUIC 同样是一个可靠的协议，它使用 Packet Number 代替了 TCP 的 Sequence Number，并且每个 Packet Number 都严格递增，也就是说就算 Packet N 丢失了，重传的 Packet N 的 Packet Number 已经不是 N，而是一个比 N 大的值，比如Packet N+M。
+
+QUIC 使用的Packet Number 单调递增的设计，可以让数据包不再像TCP 那样必须有序确认，QUIC 支持乱序确认，当数据包Packet N 丢失后，只要有新的已接收数据包确认，当前窗口就会继续向右滑动。待发送端获知数据包Packet N 丢失后，会将需要重传的数据包放到待发送队列，重新编号比如数据包Packet N+M 后重新发送给接收端，对重传数据包的处理跟发送新的数据包类似，这样就不会因为丢包重传将当前窗口阻塞在原地，从而解决了队头阻塞问题。那么，既然重传数据包的Packet N+M 与丢失数据包的Packet N 编号并不一致，我们怎么确定这两个数据包的内容一样呢？
+
+QUIC使用Stream ID 来标识当前数据流属于哪个资源请求，这同时也是数据包多路复用传输到接收端后能正常组装的依据。重传的数据包Packet N+M 和丢失的数据包Packet N 单靠Stream ID 的比对一致仍然不能判断两个数据包内容一致，还需要再新增一个字段Stream Offset，标识当前数据包在当前Stream ID 中的字节偏移量。
+
+有了Stream Offset 字段信息，属于同一个Stream ID 的数据包也可以乱序传输了（HTTP/2 中仅靠Stream ID 标识，要求同属于一个Stream ID 的数据帧必须有序传输），通过两个数据包的Stream ID 与 Stream Offset 都一致，就说明这两个数据包的内容一致。
+![quic](quic_model.jpeg)
+
+## QUIC协议
+QUIC 的 packet 除了个别报文比如 PUBLIC_RESET 和 CHLO，所有报文头部都是经过认证的，报文 Body 都是经过加密的。这样只要对 QUIC 报文任何修改，接收端都能够及时发现，有效地降低了安全风险。如图所示，红色部分是 Stream Frame 的报文头部，有认证。绿色部分是报文内容，全部经过加密。
+![报文](quick_package.jpeg)
+
+- Flags：用于表示Connection ID长度、Packet Number长度等信息；
+- Connection ID：客户端随机选择的最大长度为64位的无符号整数。但是，长度可以协商；
+- QUIC Version：QUIC协议的版本号，32位的可选字段。如果Public Flag & FLAG_VERSION != 0，这个字段必填。客户端设置Public Flag 中的 Bit0 为1，并且填写期望的版本号。 如果客户端期望的版本号服务端不支持，服务端设置 Public Flag中的 Bit0 为 1，并且在该字段中列出服务端支持的协议版本（0或者多个），并且该字段后不能有任何报文；
+- Packet Number：长度取决于Public Flag中Bit4及Bit5两位的值，最大长度6字节。发送端在每个普通报文中设置Packet Number。 发送端发送的第一个包的序列号是1，随后的数据包中的序列号的都大于前一个包中的序列号；
+- Stream ID：用于标识当前数据流属于哪个资源请求；
+- Offset：标识当前数据包在当前Stream ID 中的字节偏移量；
+
+QUIC报文的大小需要满足路径MTU的大小以避免被分片。当前QUIC在IPV6下的最大报文长度为1350，IPV4下的最大报文长度为1370。
