@@ -30,6 +30,7 @@ String run(String url) throws IOException {
 }
 ```
 这就是OkHttp 的简单用法，我们看到只要有 HttpClient、Request、Response
+![结构图](okhttp_constuct.awebp)
 ![流程图](https://raw.githubusercontent.com/pacoblack/BlogImages/master/okhttp/okhttp1.png)
 
 # 代码流程
@@ -209,7 +210,7 @@ public final class Route {
 ```
 对应的是 `hasNextPostponed()`, `hasNextProxy()`, `hasNextInetSocketAddress()`
 
-## RetryAndFollowUpInterceptor
+## RetryAndFollowUpInterceptor - 重定向并重试
 上面我们分析了 `Address`、`RouteSelector`，现在我们看它们是怎么用的
 ```
 public final class RetryAndFollowUpInterceptor implements Interceptor {
@@ -305,7 +306,7 @@ public final class RetryAndFollowUpInterceptor implements Interceptor {
 执行过程如下：
 1. 先是获取 Call 的`transmitter`, transmitter中是有 connectionPool 的
 2. 开启 while 循环
-3. 执行 `prepareToConnect`，判断是否是相同连接、是否需要`maybeReleaseConnection()`，并重置 `exchangeFinder`，这个 `finder` 就是用来寻找可用 `Connection`
+3. 执行 `prepareToConnect`，*判断是否是相同连接*、是否需要`maybeReleaseConnection()`，并重置 `exchangeFinder`，这个 `finder` 就是用来寻找可用 `Connection`
 4. 执行下一个拦截器
 5. 如果 priorResponse 不为空，说明得到了 response
 6. 获取从 `RouteSelector` 中得到的 Route
@@ -316,7 +317,7 @@ public final class RetryAndFollowUpInterceptor implements Interceptor {
 总的来说：
 就是不停的循环来获取response，每循环一次都会获取下一个request，如果没有request，则返回response，退出循环。而获取的request 是根据上一个response 的状态码确定的。
 
-## BridgeInterceptor
+## BridgeInterceptor - 补充请求头
 主要负责对Request和Response报文进行加工
 1. 在发送阶段**补全了一些header**，如Content-Type、Content-Length、Transfer-Encoding、Host、Connection、Accept-Encoding、User-Agent 等。
 2. 如果需要gzip压缩则进行**gzip压缩**
@@ -326,7 +327,7 @@ public final class RetryAndFollowUpInterceptor implements Interceptor {
 6. 如果服务器返回的响应content是以gzip压缩过的，则会先进行解压缩，移除响应中的header Content-Encoding和Content-Length，构造新的响应返回。
 7. 否则直接返回 response
 
-## CacheInterceptor
+## CacheInterceptor - 判断不同的缓存策略
 
 ### 常用缓存请求头
 - Cache-Control 常见的取值有private、public、no-cache、max-age、no-store、默认是 private。
@@ -682,7 +683,7 @@ READ 3400330d1dfc7f3f7f4b8d4d803dfcf6
 - 每一个Cache项对应两个状态副本：DIRTY，CLEAN。CLEAN表示当前可用的Cache。外部访问到cache快照均为CLEAN状态；DIRTY为编辑状态的cache。由于更新和创新都只操作DIRTY状态的副本，实现了读和写的分离。
 - 每一个url请求cache有四个文件。首先是两个状态(DIRY，CLEAN)，而每个状态又对应两个文件：一个(key.0, key.0.tmp)文件对应存储meta数据，一个(key.1, key.1.tmp)文件存储body数据。
 
-## ConnectInterceptor
+## ConnectInterceptor - 在连接池中建立连接
 ### UML图
 ![](https://raw.githubusercontent.com/pacoblack/BlogImages/master/okhttp/okhttp2.jpg)
 主要作用是打开了与服务器的链接，正式开启了网络请求
@@ -1116,7 +1117,7 @@ cleanup中还有一个方法 `pruneAndGetAllocationCount()`，它是用来追踪
 3. 如果没有现存的连接，就创建一个路由列表，并创建一个新连接。如果失败了，就迭代的尝试列表中可用的路由。
 
 
-## CallServerInterceptor
+## CallServerInterceptor - 通过连接获取服务端返回
 主要功能就是向服务器发送请求，并最终返回Response对象供客户端使用
 ### 连接与请求
 OkHttp 中，ConnectionSpec用于描述HTTP数据经由socket时的socket连接配置。由 OkHttpClient 管理。
