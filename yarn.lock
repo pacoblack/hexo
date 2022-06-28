@@ -1790,7 +1790,7 @@
   dependencies:
     "function-bind" "^1.1.1"
 
-"hexo-asset-image@git+https://github.com/7ym0n/hexo-asset-image.git":
+"hexo-asset-image@github:7ym0n/hexo-asset-image":
   "resolved" "git+ssh://git@github.com/7ym0n/hexo-asset-image.git#6c88c98214765112d148850a646ddca379fcdcfe"
   "version" "0.0.3"
   dependencies:
