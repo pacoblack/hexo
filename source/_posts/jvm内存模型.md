@@ -132,6 +132,14 @@ public static final int value = 123; // 在准备阶段初始化为 123
 ## 字节码执行
 - 栈帧结构
     栈帧是用于支持虚拟机进行方法调用和方法执行的数据结构，它是虚拟机运行时数据区中的虚拟机栈的栈元素。栈帧存储了方法的局部变量表、操作数栈、动态连接和方法返回地址等信息。
+1. 返回地址：方法被调用的位置
+2. 动态连接：常量池中该方法的引用
+3. 操作数栈：和局部变量表一样，在编译时期就已经确定了该方法所需要分配的局部变量表的最大容量。
+>当一个方法刚刚开始执行的时候，这个方法的操作数栈是空的，在方法的执行过程中，会有各种字节码指令往操作数栈中写入和提取内容，也就是出栈/入栈操作。例如，在做算术运算的时候是通过操作数栈来进行的，又或者在调用其他方法的时候是通过操作数栈来进行参数传递的。
+在概念模型里面，虚拟机栈中的栈帧之间是完全相互独立的。但是在大多数虚拟机的实现里都会做一些优化处理，令两个栈帧出现一部分重叠。
+
+4. 局部变量表：包括boolean、byte、char、short、int、float、reference，为了节省空间，这些slot会复用
+
 ![栈帧示意图](https://raw.githubusercontent.com/pacoblack/BlogImages/master/jvm/jvm8.jpg)
 
     当一个方法开始执行的时候，这个方法的操作数栈是空的，在方法的执行过程中，会有各种字节码指令向操作数栈中写入和提取内容，也就是入栈和出栈的操作。每个栈帧都包含一个指向运行时常量池中该栈帧**所属方法的引用**，持有这个引用是为了支持方法调用过程中的动态链接。
@@ -206,7 +214,7 @@ StoreLoad Barriers是一个“全能型”的屏障，它同时具有其他三�
 
 注意，两个操作之间具有happens-before关系，并不意味着前一个操作必须要在后一个操作之前执行！happens-before仅仅要求前一个操作（**执行的结果**）对后一个操作可见，且前一个操作按顺序排在第二个操作之前（the first is visible to and ordered before the second）。
 
-## 数据依赖性
+## 数据依赖性与控制依赖性
 如果两个操作访问同一个变量，且这两个操作中有一个为写操作，此时这两个操作之间就存在数据依赖性。
 - **as-if-serial语义**。不管怎么重排序（编译器和处理器为了提高并行度）,（单线程）程序的执行结果不能被改变。
     为了遵守as-if-serial语义，编译器和处理器不会对存在数据依赖关系的操作做重排序，因为这种重排序会改变执行结果。但是，如果操作之间不存在数据依赖关系，这些操作可能被编译器和处理器重排序。比如
@@ -247,7 +255,7 @@ class ReorderExample {
 由于操作1和操作2没有数据依赖关系，编译器和处理器可以对这两个操作重排序；同样，操作3和操作4没有数据依赖关系，编译器和处理器也可以对这两个操作重排序。
 但是在重排序后会出现非预期结果，这是因为代码中存在**控制依赖性**，会影响指令序列执行的并行度。为此，编译器和处理器会采用**猜测（Speculation）执行**来克服控制相关性对并行度的影响。以处理器的猜测执行为例，执行线程 B 的处理器可以提前读取并计算 a*a，然后把计算结果临时保存到一个名为重排序缓冲（reorder buffer ROB）的硬件缓存中。当接下来操作 3 的条件判断为真时，就把该计算结果写入变量 i 中。
 
-## 数据竞争与顺序一致性保证
+## 数据不同步引起数据竞争与顺序一致性问题
 当程序未正确同步时，就会存在数据竞争。java内存模型规范对数据竞争的定义如下：
 1. 在一个线程中写一个变量，
 2. 在另一个线程读同一个变量，
@@ -297,7 +305,7 @@ class SynchronizedExample {
 
 JMM不保证未同步程序的执行结果与该程序在顺序一致性模型中的执行结果一致。因为未同步程序在顺序一致性模型中执行时，整体上是无序的，其执行结果无法预知。
 
-## volatile
+## volatile 与内存屏障
 volatile变量自身具有下列特性：
 - 可见性。对一个volatile变量的读，总是能看到（任意线程）对这个volatile变量**最后的写入**。
 - 原子性：对任意单个volatile变量的**读/写具有原子性**，但类似于volatile++这种复合操作不具有原子性。
@@ -308,10 +316,20 @@ volatile写的内存语义如下：
 volatile读的内存语义如下：
 - 当读一个volatile变量时，JMM会把该线程对应的本地内存置为无效。线程接下来将从主内存中读取共享变量。
 
+### 内存屏障
 为了实现volatile的内存语义，编译器在生成字节码时，会在指令序列中**插入内存屏障**来禁止特定类型的处理器重排序。
+
+内存屏障（Memory Barrier）可以被分为以下几种类型：
+- LoadLoad屏障：对于这样的语句`Load1; LoadLoad; Load2;`在Load2及后续读取操作要读取的数据被访问前，保证Load1要读取的数据被读取完毕。
+- StoreStore屏障：对于这样的语句`Store1; StoreStore; Store2;`在Store2及后续写入操作执行前，保证Store1的写入操作对其它处理器可见。
+- LoadStore屏障：对于这样的语句`Load1; LoadStore; Store2;`在Store2及后续写入操作被刷出前，保证Load1要读取的数据被读取完毕。
+- StoreLoad屏障：对于这样的语句`Store1; StoreLoad; Load2;`在Load2及后续所有读取操作执行前，保证Store1的写入对所有处理器可见。它的开销是四种屏障中最大的。在大多数处理器的实现中，这个屏障是个万能屏障，兼具其它三种内存屏障的功能
 
 下面是在保守策略下，volatile读插入内存屏障后生成的指令序列示意图：
 ![插入内存屏障后生成的指令序列示意图](https://raw.githubusercontent.com/pacoblack/BlogImages/master/jvm/jvm14.png)
+>内存写：StoreStore屏障---写---StoreLoad屏障
+内存读：LoadLoad屏障----读----LoadStore屏障
+
 上图中的StoreStore屏障可以保证在volatile写之前，其前面的所有普通写操作已经对任意处理器可见了。这是因为StoreStore屏障将保障上面所有的普通写在volatile写之前**刷新到主内存**。
 后面的StoreLoad屏障的作用是避免volatile写与后面可能有的volatile读/写操作**重排序**。为了保证能正确实现volatile的内存语义，JMM在这里采取了保守策略：在每个volatile写的后面或在每个volatile读的前面插入一个StoreLoad屏障。从整体执行效率的角度考虑，JMM选择了在每个volatile写的后面插入一个StoreLoad屏障。
 
@@ -342,7 +360,7 @@ class VolatileBarrierExample {
 当线程释放锁时，JMM会把该线程对应的本地内存中的共享变量刷新到主内存中。以上面的MonitorExample程序为例，A线程释放锁后，共享数据的状态示意图如下：
 ![锁释放后的状态](https://raw.githubusercontent.com/pacoblack/BlogImages/master/jvm/jvm16.png)
 当线程获取锁时，JMM会把该线程对应的本地内存置为无效。从而使得被监视器保护的临界区代码必须要从主内存中去读取共享变量。下面是锁获取的状态示意图：
-![获取锁时的状态](https://raw.githubusercontent.com/pacoblack/BlogImages/master/jvm/jvm17.jpg)
+![获取锁时的状态](https://raw.githubusercontent.com/pacoblack/BlogImages/master/jvm/jvm17.png)
 对比锁释放-获取的内存语义与volatile写-读的内存语义，可以看出：**锁释放与volatile写有相同的内存语义；锁获取与volatile读有相同的内存语义。**
 
 借助ReentrantLock的源代码，来分析锁内存语义的具体实现机制。
@@ -564,7 +582,7 @@ public class SynchronizedDemo {
 }
 ```
 对上面的代码进行反编译：
-![反编译后的字节码](https://raw.githubusercontent.com/pacoblack/BlogImages/master/jvm/jvm23.png)
+![反编译后的字节码](https://raw.githubusercontent.com/pacoblack/BlogImages/master/jvm/jvm23.jpeg)
 具体原因如下：
 每个对象都会关联一个监视器锁（monitor）。当monitor被占用时就会处于锁定状态，线程执行monitorenter指令时尝试获取monitor的所有权，过程如下：
 1. 如果monitor的进入数为0，则该线程进入monitor，然后将进入数设置为1，该线程即为monitor的所有者。
@@ -578,7 +596,7 @@ public class SynchronizedDemo {
 **无锁与偏向锁的区别是有没有线程ID**
 监视器锁(monitor)本质是依赖于底层的操作系统的Mutex Lock来实现的。而操作系统实现线程之间的切换需要从**用户态转换到核心态**，这个成本非常高，状态之间的转换需要相对比较长的时间，这就是为什么Synchronized效率低的原因。因此，这种依赖于操作系统Mutex Lock所实现的锁我们称之为**重量级锁**。JDK中对Synchronized做的种种优化，其核心都是为了减少这种重量级锁的使用。JDK1.6以后，为了减少获得锁和释放锁所带来的性能消耗，提高性能，引入了**轻量级锁**和**偏向锁**。
 
-## 偏向锁
+## 偏向锁(只修改了线程ID，标志为01，无需释放)
 偏向锁是为了在无多线程竞争的情况下尽量减少不必要的轻量级锁执行路径，**因为轻量级锁的获取及释放依赖多次CAS原子指令，而偏向锁只需要在置换ThreadID的时候依赖一次CAS原子指令**（由于一旦出现多线程竞争的情况就必须撤销偏向锁，所以偏向锁的撤销操作的性能损耗必须小于节省下来的CAS原子指令的性能消耗）。
 
 >轻量级锁是为了在线程交替执行同步块时提高性能，而偏向锁则是在只有一个线程执行同步块时进一步提高性能。
@@ -594,6 +612,7 @@ public class SynchronizedDemo {
 　　偏向锁只有遇到其他线程尝试竞争偏向锁时，持有偏向锁的线程才会释放锁，线程不会主动去释放偏向锁。偏向锁的撤销，需要等待全局安全点（在这个时间点上没有字节码正在执行），它会首先暂停拥有偏向锁的线程，判断锁对象是否处于被锁定状态，撤销偏向锁后恢复到未锁定（标志位为“01”）或轻量级锁（标志位为“00”）的状态。
 
 ## 轻量级锁
+**修改了对象头的记录、标志位和栈帧记录，标志为00，解锁需要拷贝回对象头，标志依旧是00，根据栈帧记录判断持有锁的线程**
 - 轻量级锁的加锁过程
     1. 在代码进入同步块的时候，如果同步对象锁状态为无锁状态（锁标志位为“01”状态，是否为偏向锁为“0”），虚拟机首先将在**当前线程的栈帧中建立一个名为锁记录**（Lock Record）的空间，用于存储锁对象目前的Mark Word的拷贝，官方称之为 Displaced Mark Word。这时候线程堆栈与对象头的状态如下图所示。
 ![栈帧和对象头关系](https://raw.githubusercontent.com/pacoblack/BlogImages/master/jvm/jvm25.jpeg)
@@ -609,11 +628,8 @@ public class SynchronizedDemo {
     2. 如果替换成功，整个同步过程就完成了。
     3. 如果替换失败，说明有其他线程尝试过获取该锁（此时锁已膨胀），那就要在释放锁的同时，唤醒被挂起的线程。
 
-## 重量级锁、轻量级锁和偏向锁之间转换
-![转换图](https://raw.githubusercontent.com/pacoblack/BlogImages/master/jvm/jvm27.jpeg)
-最后 2bit 的值的变化是 01 -> 00 -> 10
-
 ## 重量级锁
+**Mark Word指向 monitor，monitor负责管理阻塞、执行队列**
 首先重量级锁有多个队列，当多个线程一起访问某个对象监视器的时候，对象监视器会将这些线程存储在不同的容器中。
     - ContentionList。竞争队列，所有请求锁的线程首先被放在这个竞争队列中；
     - EntryList。ContentionList中那些有资格成为**候选资源**的线程被移动到EntryList中；
@@ -631,6 +647,9 @@ OnDeck线程获取到锁资源后会变为Owner线程，而没有得到锁资源
 Synchronized是**非公平锁**。 Synchronized在线程进入ContentionList时，等待的线程会**先尝试自旋获取锁**，如果获取不到就进入ContentionList，这明显对于已经进入队列的线程是不公平的，还有一个不公平的事情就是自旋获取锁的线程甚至可能直接抢占OnDeck线程的锁资源。
 ![synchronized管理示意图](https://raw.githubusercontent.com/pacoblack/BlogImages/master/jvm/jvm28.png)
 
+## 重量级锁、轻量级锁和偏向锁之间转换
+![转换图](https://raw.githubusercontent.com/pacoblack/BlogImages/master/jvm/jvm27.jpeg)
+最后 2bit 的值的变化是 01 -> 00 -> 10
 
 ## 自旋锁
 自旋锁原理非常简单，如果持有锁的线程能在很短时间内释放锁资源，那么那些等待竞争锁的线程就不需要做内核态和用户态之间的切换进入阻塞挂起状态，它们只需要等一等（自旋），等持有锁的线程释放锁后即可立即获取锁，这样就避免用户线程和内核的切换的消耗。
