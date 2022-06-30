@@ -17,6 +17,16 @@ categories:
 这里我们只关注Window相关。
 # Window介绍
 ![window关系图](https://raw.githubusercontent.com/pacoblack/BlogImages/master/touch/touch3.png)
+## UI显示过程的三个进程
+Android显示的整个过程由App进程、System_server进程、SurfaceFlinger进程一起配合完成。
+
+- App进程： App需要将自己的内容显示在屏幕上，所以需要负责发起Surface创建的请求。同时触发对控件的测量、布局、绘制以及输入事件的派发处理，这些主要在ViewRootImpl中触发；
+
+- System_server进程： 主要是WindowManagerService，负责接收App请求，同时和SurfaceFlinger建立连接，向SurfaceFlinger发起具体请求创建Surface，并且创建Surace的辅助管理类SurfaceControl（和window一一对应）(AMS作用是统一调度所有App的Activity）；
+- SurfaceFlinger： 为App创建具体的Surface，在SurfaceFLinger对应成Layer，然后负责管理、合成所有图层，最终显示。
+![整体流程](window_all.png)
+![调用流程](window_call.png)
+
 ## WindowManager
 Android中基本上**所有的View都是通过Window来呈现的**，不管是Activity、Toast还是Dialog，它们的视图都是附加到Window上的，因此可以将Window理解为View的承载者与直接管理者。而Window需要WindowManager协助完成，这里它的实现类是 WindowManagerImpl . 而 WindowManagerImpl 通过 getSystemService(Context.WINDOW_SERVICE) 来得到。
 
