@@ -2,7 +2,7 @@
 title: http认知
 toc: true
 date: 2022-06-28 10:31:06
-tags: 
+tags:
     - android
 categories:
     - android
@@ -100,3 +100,187 @@ QUIC 的 packet 除了个别报文比如 PUBLIC_RESET 和 CHLO，所有报文头
 - Offset：标识当前数据包在当前Stream ID 中的字节偏移量；
 
 QUIC报文的大小需要满足路径MTU的大小以避免被分片。当前QUIC在IPV6下的最大报文长度为1350，IPV4下的最大报文长度为1370。
+
+# 开启HTTP2.0
+![流程图](okhttp_2.awebp)
+
+从拦截器实现可以发现，Okhttp实现了一个连接池，当ConnectionInterceptor被调用的时候，先是判断连接池内有没有空闲并且健康的可用连接，然后再使用连接去调度下一个拦截器，那么也就是一个tcp连接的存活时间是大于Http请求的，所以一个Tcp可以对应多个Http请求。
+
+我们主要说些connet方法，它是整个Http2.0的开启流程的关键。
+```java
+ public void connect(int connectTimeout, int readTimeout, int writeTimeout,
+      int pingIntervalMillis, boolean connectionRetryEnabled, Call call,
+      EventListener eventListener) {
+    if (protocol != null) throw new IllegalStateException("already connected");
+
+    RouteException routeException = null;
+    List<ConnectionSpec> connectionSpecs = route.address().connectionSpecs();
+    ConnectionSpecSelector connectionSpecSelector = new ConnectionSpecSelector(connectionSpecs);
+
+    if (route.address().sslSocketFactory() == null) {
+      if (!connectionSpecs.contains(ConnectionSpec.CLEARTEXT)) {
+        throw new RouteException(new UnknownServiceException(
+            "CLEARTEXT communication not enabled for client"));
+      }
+      String host = route.address().url().host();
+      if (!Platform.get().isCleartextTrafficPermitted(host)) {
+        throw new RouteException(new UnknownServiceException(
+            "CLEARTEXT communication to " + host + " not permitted by network security policy"));
+      }
+    } else {
+      if (route.address().protocols().contains(Protocol.H2_PRIOR_KNOWLEDGE)) {
+        throw new RouteException(new UnknownServiceException(
+            "H2_PRIOR_KNOWLEDGE cannot be used with HTTPS"));
+      }
+    }
+
+    while (true) {
+      try {
+        if (route.requiresTunnel()) {
+          connectTunnel(connectTimeout, readTimeout, writeTimeout, call, eventListener);
+          if (rawSocket == null) {
+            // We were unable to connect the tunnel but properly closed down our resources.
+            break;
+          }
+        } else {
+          connectSocket(connectTimeout, readTimeout, call, eventListener);
+        }
+        establishProtocol(connectionSpecSelector, pingIntervalMillis, call, eventListener);
+        eventListener.connectEnd(call, route.socketAddress(), route.proxy(), protocol);
+        break;
+      } catch (IOException e) {
+        closeQuietly(socket);
+        closeQuietly(rawSocket);
+        socket = null;
+        rawSocket = null;
+        source = null;
+        sink = null;
+        handshake = null;
+        protocol = null;
+        http2Connection = null;
+
+        eventListener.connectFailed(call, route.socketAddress(), route.proxy(), null, e);
+
+        if (routeException == null) {
+          routeException = new RouteException(e);
+        } else {
+          routeException.addConnectException(e);
+        }
+
+        if (!connectionRetryEnabled || !connectionSpecSelector.connectionFailed(e)) {
+          throw routeException;
+        }
+      }
+    }
+
+    if (route.requiresTunnel() && rawSocket == null) {
+      ProtocolException exception = new ProtocolException("Too many tunnel connections attempted: "
+          + MAX_TUNNEL_ATTEMPTS);
+      throw new RouteException(exception);
+    }
+
+    if (http2Connection != null) {
+      synchronized (connectionPool) {
+        allocationLimit = http2Connection.maxConcurrentStreams();
+      }
+    }
+  }
+```
+其中while true 循环内会去构建一个socket连接，当socket连接构建成功之后，会调用`establishProtocol`方法，这个就是整篇文章的主角了。
+```java
+  private void establishProtocol(ConnectionSpecSelector connectionSpecSelector,
+      int pingIntervalMillis, Call call, EventListener eventListener) throws IOException {
+    if (route.address().sslSocketFactory() == null) {
+      if (route.address().protocols().contains(Protocol.H2_PRIOR_KNOWLEDGE)) {
+        socket = rawSocket;
+        protocol = Protocol.H2_PRIOR_KNOWLEDGE;
+        startHttp2(pingIntervalMillis);
+        return;
+      }
+
+      socket = rawSocket;
+      protocol = Protocol.HTTP_1_1;
+      return;
+    }
+
+    eventListener.secureConnectStart(call);
+    connectTls(connectionSpecSelector);
+    eventListener.secureConnectEnd(call, handshake);
+
+    if (protocol == Protocol.HTTP_2) {
+      startHttp2(pingIntervalMillis);
+    }
+  }
+```
+看到最后几行代码，其实已经能知道了。只要当前协议包含了HTTP_2，OKhttp就会开启Http2.0模式，否则则降级成1.1的代码。而如何去获取协议就是connectTls这个方法了，而且Tls完整流程都在方法内。
+```java
+private void connectTls(ConnectionSpecSelector connectionSpecSelector) throws IOException {
+    Address address = route.address();
+    SSLSocketFactory sslSocketFactory = address.sslSocketFactory();
+    boolean success = false;
+    SSLSocket sslSocket = null;
+    try {
+      // Create the wrapper over the connected socket.
+      sslSocket = (SSLSocket) sslSocketFactory.createSocket(
+          rawSocket, address.url().host(), address.url().port(), true /* autoClose */);
+
+      // Configure the socket's ciphers, TLS versions, and extensions.
+      ConnectionSpec connectionSpec = connectionSpecSelector.configureSecureSocket(sslSocket);
+      if (connectionSpec.supportsTlsExtensions()) {
+        Platform.get().configureTlsExtensions(
+            sslSocket, address.url().host(), address.protocols());
+      }
+
+      // Force handshake. This can throw!
+      sslSocket.startHandshake();
+      // block for session establishment
+      SSLSession sslSocketSession = sslSocket.getSession();
+      // 获取HandShake 信息
+      Handshake unverifiedHandshake = Handshake.get(sslSocketSession);
+
+      // Verify that the socket's certificates are acceptable for the target host.
+      if (!address.hostnameVerifier().verify(address.url().host(), sslSocketSession)) {
+        List<Certificate> peerCertificates = unverifiedHandshake.peerCertificates();
+        if (!peerCertificates.isEmpty()) {
+          X509Certificate cert = (X509Certificate) peerCertificates.get(0);
+          throw new SSLPeerUnverifiedException(
+              "Hostname " + address.url().host() + " not verified:"
+                  + "\n    certificate: " + CertificatePinner.pin(cert)
+                  + "\n    DN: " + cert.getSubjectDN().getName()
+                  + "\n    subjectAltNames: " + OkHostnameVerifier.allSubjectAltNames(cert));
+        } else {
+          throw new SSLPeerUnverifiedException(
+              "Hostname " + address.url().host() + " not verified (no certificates)");
+        }
+      }
+
+      // Check that the certificate pinner is satisfied by the certificates presented.
+      address.certificatePinner().check(address.url().host(),
+          unverifiedHandshake.peerCertificates());
+
+      // Success! Save the handshake and the ALPN protocol.
+      // 成功之后，保存HandShake以及ALPN协议信息。
+      String maybeProtocol = connectionSpec.supportsTlsExtensions()
+          ? Platform.get().getSelectedProtocol(sslSocket)
+          : null;
+      socket = sslSocket;
+      source = Okio.buffer(Okio.source(socket));
+      sink = Okio.buffer(Okio.sink(socket));
+      handshake = unverifiedHandshake;
+      protocol = maybeProtocol != null
+          ? Protocol.get(maybeProtocol)
+          : Protocol.HTTP_1_1;
+      success = true;
+    } catch (AssertionError e) {
+      if (Util.isAndroidGetsocknameError(e)) throw new IOException(e);
+      throw e;
+    } finally {
+      if (sslSocket != null) {
+        Platform.get().afterHandshake(sslSocket);
+      }
+      if (!success) {
+        closeQuietly(sslSocket);
+      }
+    }
+  }
+```
