@@ -291,3 +291,52 @@ Docker 中搜索 nibrev/ant-media-server 或者 bytelang/kplayer
 [https://post.smzdm.com/p/apv56l97/]()
 [https://juejin.cn/post/7206226905309446202]()
 # 软路由
+
+# 旁路由
+## Docker方案
+1. 安装docker，在商店安装
+2. 开启ssh，`终端机和SNMP`-`开启SSH功能`
+3. 安装openwrt
+    - windows 端下载SSH工具，`Hosts`-`New Host`
+		- 配置需要连接的nas的 Label Address Port Username password
+		- 通过ssh查看nas对应的网卡 `ifconfig`
+		- `sudo -i`开始管理员模式
+		- `ip link set etch0 promisc on` 开启混杂模式
+		- `docker network create -d macvlan --subnet=192.168.1.0/24 --gateway 192.168.1.1 -o parent=eth0 mac-net` 注意“192.168.1.1”为主路由地址，“eth0”为网卡， “192.168.1.0/24”为路由器的子网地址
+		- 上面执行完就可以在`docker`-`网络` 下看到对应的设置
+		- `docker pull esirpg/buddha:latst` 拉去openWrt容器
+		- `docker run -d --restart always --name esirpg-buddha --privileged --network mac-net --ip=192.168.1.13 esirpg/buddha:latest  /sbin/init`,启动容器，其中“192.168.1.13” 为旁路由ip，需要保证这个ip没有被占用
+		- `bash docker exec -it esirpg-buddha ash` 进入容器
+		- `bash vi /etc/config/network` 修改网络设置，将 config interface ‘lan’ 下面的 option ipaddr 修改为上面的 “192.168.1.13”
+		- `bash /etc/init.d/network restart` 重启网络配置，使配置生效，`bash exit`
+### 配置openwrt
+此时，浏览器打开“192.168.1.13” 进入openwrt登录页，账号 “root”，没有密码，进入后会提示修改密码
+- `网络`-`接口`,修改LAN口 `IpV4地址`修改为`192.168.1.13`,也就是openWrt的地址， `IPV4网关`和`自定义DNS服务`修改为主路由地址
+- 勾选最下面的`忽略此接口`，保存&退出。
+- `网络`-`防火墙`，`入站数据` `出站数据` `转发`包括 区域中的全部选择`接受`，Lan的`MSS钳制`不勾选，其余全部勾选,保存&退出
+### 配置clash
+- 下载[clash](https://github.com/Dreamacro/clash/releases),选择linux amd64，解压并改名为 clash
+- `服务`-`clash`-`更新`，上传并安装
+- 在`配置`- `导入配置`中配置服务即可
+- 保存应用 ，启动配置
+
+这个方案相对于 VM 安装简单，但坑的地方在于，不支持 udp 转发，在某些模式上甚至连不了网。推测是这些功能依赖于 kmod ，虽然在容器中安装了，但实际上用的还是 host kernel ，而 host 并未安装。一种可行的方法是给群晖的 kernel 编个 kmod ，但需要安装群晖一堆的构建套件，以前为了编 Wireguard 试过一次，非常痛苦，建议不要折腾。
+
+## VM方案
+vm 方案的缺点在于，guest 存在虚拟化开销，并且由于群晖对虚拟机的支持非常有限（没 vt-d），网卡只能通过 virtio 或者模拟设备的方式给 vm 用。但鉴于 docker 方案不支持 UDP，只能将就用了。类似于 docker 方案，起一个 openwrt vm，装 openclash 。
+1. 下载 openwrt image https://downloads.openwrt.org/releases/19.07.7/targets/x86/64/combined-squashfs.img.gz
+2. 群晖在 Virtual Machine Manage - 映像 - 硬盘映像 导入该镜像，并在 虚拟机 - 导入 - 从硬盘映像导入 ，给个 1C1G ，硬盘选择刚刚导入的镜像，网络选择默认的即可
+3. 启动虚拟机，通过 虚拟机 - 连接拿到 shell ，同样修改 /etc/config/network 配置，手动指定 ip 和 dns 并重新加载配置。这时候 ping 测试会发现虽然能解析到 ip 但连接不上。这是因为缺少一条路由指令，建议加入到 /etc/config/network 持久化：
+```
+config route 'external'
+    option interface 'lan'
+    option target '0.0.0.0'
+    option netmask '0.0.0.0'
+    option gateway '192.168.10.1'
+```
+重新加载配置即可
+
+同 docker 方案，安装 openclash
+
+## 接入
+在需要科学上网的设备上，手动指定 ip ，并将网关和 dns 指定为旁路由的 ip ，我这里为 192.168.10.2 ，即可让旁路由接管流量。
