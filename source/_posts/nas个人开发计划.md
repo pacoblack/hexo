@@ -62,7 +62,7 @@ categories:
 **自定义规则**中配置如下
 勾选 **Allow Ethernet Bridging**
 在**Managed Routes**中配置**Destination**为内网ip,**Via**为zerotier分配给路由系统的虚拟ip
-```
+```shell
 # zt7nnmu3yd换成自己系统分配的接口名字
 iptables -I FORWARD -i zt7nnmu3yd -j ACCEPT
 iptables -I FORWARD -o zt7nnmu3yd -j ACCEPT
