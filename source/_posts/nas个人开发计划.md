@@ -57,6 +57,17 @@ categories:
 1. 注册账号[https://www.zerotier.com]()
 2. Network 中创建【Network ID】，内部选择【private】则连接的时候需要确认，【public】则不需要
 3. 安装客户端,配置 【Network ID】即可
+在 **基本设置** 中选择zerotier创建的接口
+**防火墙**中选择zerotier的lan口
+**自定义规则**中配置如下
+勾选 **Allow Ethernet Bridging**
+在**Managed Routes**中配置**Destination**为内网ip,**Via**为zerotier分配给路由系统的虚拟ip
+```
+# zt7nnmu3yd换成自己系统分配的接口名字
+iptables -I FORWARD -i zt7nnmu3yd -j ACCEPT
+iptables -I FORWARD -o zt7nnmu3yd -j ACCEPT
+iptables -t nat -I POSTROUTING -o zt7nnmu3yd -j MASQUERADE
+```
 4. 返回网页端，勾选允许接入网络，【Do not Auto-Assign IPs】勾选会使用设置ip，否则会自动分配 IP
 
 ### 自建方案
@@ -70,33 +81,46 @@ LEAF 相当于各个枝叶，就是每台连接到该网络的机器节点。
 1. 购买阿里云服务器，抢占式，centOS
 2. 配置
 
-```
-//1. 搭建
+```bash
+#1. 搭建
 curl -s https://install.zerotier.com | sudo bash
 
 //systemctl enable zerotier-one //配置为开机启动
 
-//2. 搭建的moon服务器加入到创建的网络中
+#2. 搭建的moon服务器加入到创建的网络中
 zerotier-cli join <network-id>
 
-//3. 生成moon.json 模版
+#3. 生成moon.json 模版
 cd /var/lib/zerotier-one
 zerotier-idtool initmoon identity.public > moon.json
 
-//4.修改json文件
+#4.修改json文件
 sudo vi /var/lib/zerotier-one/moon.json
 #通过vim修改下面选项的内容并保存
 "stableEndpoints": [ "你的公网IP地址/端口(9993)" ]
+#切记饿进入阿里云后台开启9993端口，协议类型为udp
 
-//5. 生成签名文件 xxx.moon
+#5. 生成签名文件 xxx.moon
 zerotier-idtool genmoon moon.json
 
-//6. 建立 /var/lib/zerotier-one/moons.d 文件夹，将 xxx.moon 文件拷贝进去
+#6. 建立 /var/lib/zerotier-one/moons.d 文件夹，将 xxx.moon 文件拷贝进去
 ```
 3. 重启 zerotier.
+4. openWrt连接moon服务器,修改配置文件
+```bash
+vim /etc/config/zerotier
+
+# /etc/config/zerotier
+option enabled '1'
+option config_path '/etc/zerotier'
+list join 'your Network ID'
+option nat '1'
+```
+在/etc中创建zerotier文件夹，将moons.d文件夹复制到/etc/zerotier下，重启zerotier服务 `/etc/init.d/zerotier restart`
+执行命令`zerotier-cli listpeers | grep MOON`，如果有自己服务器公网ip显示表示配置成功
 
 ### 客户机连接到moon节点
-1. `zerotier-cli orbit <id> <id>`  id为之前的moon.json中的id，两个id是一样的
+1. `zerotier-cli orbit <id> <id>`  id就是000000xxxx.moon，两个id是一样的
 2. 需要在 /var/lib/zerotier-one 目录下新建 moons.d 文件夹和 moon 节点一样，将 000000xxxx.moon 文件放到其中，并重启 zerotier。
 
 ## FRP
