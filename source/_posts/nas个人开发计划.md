@@ -314,6 +314,140 @@ Nginx 配置参考 官方 Wiki, Caddy 只需要一行 reverse_proxy headscale:80
 Docker 中搜索 nibrev/ant-media-server 或者 bytelang/kplayer
 [https://post.smzdm.com/p/apv56l97/]()
 [https://juejin.cn/post/7206226905309446202]()
+
+## RTMPServer在线直播
+### 安装
+1. 在Apps搜索“RTMP”，找到“RTMPServer”，点击下载
+2. 进入容器模版设置 RTMPServer，设置ip地址，点击应用
+3. 电脑端设置OBS推流（就是电脑获取手机直播内容，然后推给服务器）
+4. 手机端设置服务器地址
+
+## Rocket.Chat
+官方地址：[https://github.com/RocketChat/Rocket.Chat]()
+
+### 创建MongoDB
+1. 搜索“Mongo”，下载并安装，如果需要指令集AVX，修改版本为4.4
+2. 创建db
+```shell
+mkdir -p /mnt/user/appdata/mongodb
+
+cd /mnt/user/appdata/mongodb
+
+nano mongod.conf
+```
+3. mongod.conf 内容如下
+```shell
+# mongod.conf
+
+# for documentation of all options, see:
+#   http://docs.mongodb.org/manual/reference/configuration-options/
+
+# Where and how to store data.
+storage:
+  dbPath: /data/db
+  journal:
+    enabled: true
+#  engine:
+#  mmapv1:
+#  wiredTiger:
+
+# network interfaces
+net:
+  port: 27017
+  bindIp: 127.0.0.1
+
+# how the process runs
+processManagement:
+  timeZoneInfo: /usr/share/zoneinfo
+
+#security:
+#  authorization: "enabled"
+
+#operationProfiling:
+
+replication:
+  replSetName: "rs01"
+
+#sharding:
+
+## Enterprise-Only Options:
+
+#auditLog:
+
+#snmp:
+```
+4. 运行MongoDB的Docker容器
+```shell
+docker run \
+-itd \
+-e PGID=1000 \
+-e PUID=1000 \
+--name='MongoDB' \
+--net='br0' \
+--ip=192.168.2.3 \  #改成自己的内网IP 固定MongoDB的IP地址
+-e TZ="Asia/Shanghai" \
+-p '27017:27017/tcp' \
+-v '/mnt/user/appdata/mongodb/':'/data/db':'rw' \
+--hostname mongodatabase 'mongo' \
+-f /data/db/mongod.conf
+```
+5. 创建MongoDB数据库 `docker exec -it MongoDB bash`
+6. 进入MongoDB容器
+```shell
+mongo
+rs.initiate()
+
+use admin
+db.createUser({user: "root",pwd: "rocketchat",roles: [{ role: "root", db: "admin"}]})
+db.createUser({user: "rocketchat",pwd: "rocketchat",roles: [{role: "readWrite", db: "local" }]})
+use rocketchat
+db.createUser({user: "rocketchat",pwd: "rocketchat",roles: [{ role: "dbOwner",db: "rocketchat" }]})
+```
+7. 输入`docker stop MongoDB` 停止容器运行
+8. 回到 `/mnt/user/appdata/mongodb`文件夹下
+9. 输入`nano mongod.conf`找到
+```
+#security:
+#   authorization: "enabled"
+```
+删除这两行开头的#
+10. 输入docker start MongoDB 运行容器
+
+### 安装
+1. 安装docker和 docker-compose
+2. 安装软件
+```shell
+# 创建并进入工作目录
+mkdir /opt/rocketchat
+cd /opt/rocketchat
+# 下载编排文件
+curl -L https://raw.githubusercontent.com/RocketChat/Rocket.Chat/develop/docker-compose.yml -o docker-compose.yml
+```
+3. 启动服务 `docker-compose up -d`
+4. 运行Rocket.Chat容。下面的命令部署镜像，如果下载较慢或超时可以多试几次。
+```shell
+docker run \
+-itd \
+-e PGID=1000 \
+-e PUID=1000 \
+--name='Rocket.Chat' \
+--net='br0' \
+--ip=192.168.2.4 \ #改为自己的内网IP
+-e TZ="Asia/Shanghai" \
+-e 'MONGO_URL'='mongodb://rocketchat:rocketchat@192.168.2.3:27017/rocketchat' \ #改为自己的MongoDB的IP地址
+-e 'ROOT_URL'='http://192.168.2.5' \ #改为自己的内网IP
+-e 'MONGO_OPLOG_URL'='mongodb://rocketchat:rocketchat@192.168.2.3:27017/local?authSource=admin' \  #改为自己的MongoDB的IP地址
+-p '3000:3000/tcp' \
+-v '/mnt/user/appdata/rocketchat':'/app/uploads':'rw' 'library/rocket.chat'
+```
+5. 输入`docker logs -f Rocket.Chat` 查看容器运行情况，如果为“SERVER RUNNING”，表示成功
+6. 浏览器输入IP:3000就可以进入后台配置
+
+### 账号配置
+1. 配置管理员信息，直至注册服务器完成
+2. 在登录页面注册普通用户信息
+3. 注册用户还可以创建 私聊、讨论组、频道、团队
+
 # 软路由
 
 # 旁路由
