@@ -10,7 +10,7 @@ categories:
 一些原理的东西
 <!--more-->
 # 生命周期
-![Vue生命周期](https://cn.vuejs.org/images/lifecycle.png)
+![Vue生命周期](https://raw.githubusercontent.com/pacoblack/BlogImages/master/vue/lifecycle.png)
 
 # 使用模版
 
