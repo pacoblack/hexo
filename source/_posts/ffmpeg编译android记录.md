@@ -22,7 +22,7 @@ export TOOLCHAIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64
 # 设置目标架构和 API 级别
 export API=34
 export TARGET=aarch64-linux-android
-export PREFIX=$(pwd)/x264_android
+export PREFIX=$(pwd)/x264_android # 输出目录
 
 # 设置编译器和工具链
 export AR=$TOOLCHAIN/bin/llvm-ar
@@ -147,3 +147,46 @@ fi
 echo "FFmpeg has been successfully built and installed"
 
  ```
+
+**注意事项**
+1、环境中安装了gcc、cmake等编译工具
+2、${TOOLCHAIN} 要注意选择平台，linux、mac、windows不一样
+3、api版本要对应ndk的版本，低版本没有高版本的sdk
+4、输出目录x264在 x264_android，ffmpeg 在 ffmpeg_android
+
+新脚本
+```bash
+#!/bin/bash
+API=24
+NDK=/path/to/ndk
+TOOLCHAIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64
+
+# 核心编译参数（新增安全加固和性能优化）
+COMMON_FLAGS="
+--target-os=android \
+--enable-cross-compile \
+--enable-shared \
+--disable-static \
+--disable-programs \
+--disable-doc \
+--enable-gpl \
+--enable-small \
+--disable-symver \
+--enable-neon \
+--enable-asm \
+--extra-cflags='-fPIC -O3 -fstack-protector-strong -march=armv8-a' \
+--extra-ldflags='-Wl,--build-id=sha1 -Wl,--exclude-libs,ALL' \
+--sysroot=$TOOLCHAIN/sysroot"
+
+# 编译arm64-v8a（新增Vulkan支持）
+./configure $COMMON_FLAGS \
+    --arch=aarch64 \
+    --cpu=armv8-a \
+    --enable-vulkan \
+    --cross-prefix=$TOOLCHAIN/bin/aarch64-linux-android- \
+    --cc=$TOOLCHAIN/bin/aarch64-linux-android$API-clang \
+    --prefix=./android/arm64-v8a
+
+make clean && make -j$(nproc) && make install
+
+```
