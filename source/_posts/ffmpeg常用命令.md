@@ -85,8 +85,6 @@ a decoder    │  ┌───────┐  ┌───────┐  │ 
           └─────────────────────────────────────────────────┘
 ```
 ## Encoders
-eceive raw audio, video, or subtitle frames and encode them into encoded packets. The encoding (compression) process is typically lossy - it degrades stream quality to make the output smaller; some encoders are lossless, but at the cost of much higher output size. A video or audio encoder receives its input from some filtergraph’s output, subtitle encoders receive input from a decoder (since subtitle filtering is not supported yet). Every encoder is associated with some muxer’s output elementary stream and sends its output to that muxer.
-A schematic representation of an encoder looks like this:
 接收原始音频、视频或字幕帧，并将其编码为编码数据包。编码（压缩）过程通常是有损的——它会降低流质量以减小输出；有些编码器是无损的，但代价是输出尺寸会大得多。视频或音频 encoder从某个滤镜图的输出接收输入
 字幕编码器从解码器接收输入（因为字幕滤镜功能尚不支持）。每个编码器都与某个复用器的输出基本流相关联，并将其输出发送到该复用器。
 编码器的示意图如下所示：
