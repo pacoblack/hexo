@@ -176,6 +176,8 @@ ffmpeg -i INPUT                                        \
 处理和转换原始音频或视频帧。FilterGraph 由一个或多个链接到滤镜图的独立滤镜组成。滤镜图有两种类型：简单滤镜图和复杂滤镜图，分别使用 -filter 和 -filter_complex 选项配置。
 简单滤镜图与输出基本流相关联；它从 decoder 接收待过滤的输入，并将过滤后的输出发送到该输出流的 encoder.
 - 简单的滤光器
+`yadif` 主要用于将隔行扫描的视频转换为逐行扫描格式，从而提高视频质量。
+`yadif` 是一个用于处理交错式视频（即隔行扫描视频）的滤镜。隔行扫描是一种早期电视和视频传输中常用的图像显示技术，它将每一帧图像分为两场（field），每一场包含奇数行或偶数行像素数据。随着技术的发展，现在的显示器大多采用逐行扫描方式显示视频，因此需要对隔行扫描视频进行去隔行处理以适应现代播放设备。
 A simple video filtergraph that performs deinterlacing (using the yadif deinterlacer) followed by resizing (using the scale filter) can look like this:
 ```
              ┌────────────────────────┐
