@@ -8,7 +8,9 @@ categories:
 - android
 ---
 有时需要配置本地maven仓库
-<!---more-->
+
+<!--more-->
+
 # 安装
 ## 手动安装
 (官网)[https://maven.apache.org/download.cgi]下载地址 解压到对应的目录
