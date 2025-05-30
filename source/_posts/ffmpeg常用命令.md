@@ -269,3 +269,82 @@ ffmpeg 提供了 -map 选项，用于手动控制每个输出文件中的流选�
 流处理通过 -codec 选项设置，该选项针对特定输出文件中的流。具体而言，ffmpeg 在流选择过程之后应用编解码器选项，因此不会影响流选择过程。如果未为某种流类型指定 -codec 选项，ffmpeg 将选择输出文件复用器注册的默认编码器。
 
 流处理与流选择无关，但字幕存在例外情况。如果为输出文件指定了字幕编码器，则将包含找到的第一个任何类型的字幕流（文本或图像）。ffmpeg 不会验证指定的编码器是否可以转换所选流，或者转换后的流是否符合输出格式的要求。这通常也适用：当用户手动设置编码器时，流选择过程无法检查编码流是否可以复用到输出文件中。如果不能，ffmpeg 将中止，所有输出文件都将无法处理。
+
+# 示例
+存在这样的三个文件
+```
+input file 'A.avi'
+      stream 0: video 640x360
+      stream 1: audio 2 channels
+
+input file 'B.mp4'
+      stream 0: video 1920x1080
+      stream 1: audio 2 channels
+      stream 2: subtitles (text)
+      stream 3: audio 5.1 channels
+      stream 4: subtitles (text)
+
+input file 'C.mkv'
+      stream 0: video 1280x720
+      stream 1: audio 2 channels
+      stream 2: subtitles (image)
+```
+## 示例1
+`ffmpeg -i A.avi -i B.mp4 out1.mkv out2.wav -map 1:a -c:a copy out3.mov`
+
+对于三个输出文件，前两个文件未设置 -map 选项，因此 ffmpeg 将自动为这两个文件选择流。
+
+out1.mkv 是一个 Matroska 容器文件，接受视频、音频和字幕流，因此 ffmpeg 将尝试从每种类型中选择一个。
+对于视频，它将从 B.mp4 中选择流 0，因为它在所有输入视频流中分辨率最高。
+对于音频，它将从 B.mp4 中选择流 3，因为它的声道数最多。
+对于字幕，它将从 B.mp4 中选择流 2，它是 A.avi 和 B.mp4 中的第一个字幕流。
+
+out2.wav 仅接受音频流，因此仅选择 B.mp4 中的流 3。
+
+对于 out3.mov，由于设置了 -map 选项，因此不会自动选择流。-map 1:a 选项将从第二个输入 B.mp4 中选择所有音频流。**此输出文件中不会包含任何其他流。**
+
+对于前两个输出，所有包含的流都将被转码。所选编码器将是每个输出格式注册的默认编码器，可能与所选输入流的编解码器不匹配。
+
+对于第三个输出，音频流的编解码器选项已设置为复制，因此不会发生（或不可能发生）任何解码-过滤-编码操作。所选流的数据包应从输入文件传输并在输出文件中进行复用。
+
+## 示例2
+`ffmpeg -i C.mkv out1.mkv -c:s dvdsub -an out2.mkv`
+
+虽然 out1.mkv 是一个 Matroska 容器文件，可以接受字幕流，但只能选择视频和音频流。C.mkv 的字幕流是基于图像的，而 Matroska 混合器的默认字幕编码器是基于文本的，因此字幕的转码操作预计会失败，因此不会选择该流。然而，在 out2.mkv 中，命令中指定了字幕编码器，因此除了视频流之外，还会选择字幕流。-an 选项会禁用 out2.mkv 的音频流选择。
+
+## 示例3
+`ffmpeg -i A.avi -i C.mkv -i B.mp4 -filter_complex "overlay" out1.mp4 out2.srt`
+这里使用 -filter_complex 选项设置了一个滤镜图，它由一个视频滤镜组成。 `overlay` 需要两个视频输入，但未指定任何输入，因此使用了前两个可用的视频流，即 A.avi 和 C.mkv。滤镜的输出 pad 没有标签，因此被发送到第一个输出文件 out1.mp4。因此，选择 B.mp4 中的流的自动选择被跳过。自动选择的是声道最多的音频流，即 B.mp4 中的流 3。但是，由于 MP4 格式没有注册默认字幕编码器，并且用户未指定字幕编码器，因此没有选择字幕流。
+
+第二个输出文件 out2.srt 仅接受基于文本的字幕流。因此，即使第一个可用的字幕流属于 C.mkv，它也是基于图像的，因此被跳过。所选的流，即 B.mp4 中的流 2，是第一个基于文本的字幕流。
+
+## 示例4
+```
+ffmpeg -i A.avi -i B.mp4 -i C.mkv -filter_complex "[1:v]hue=s=0[outv];overlay;aresample" \
+       -map '[outv]' -an        out1.mp4 \
+                                out2.mkv \
+       -map '[outv]' -map 1:a:0 out3.mkv
+```
+上面的命令会失败，因为标有 [outv] 的输出板已映射两次。所有输出文件均不应处理。
+```
+ffmpeg -i A.avi -i B.mp4 -i C.mkv -filter_complex "[1:v]hue=s=0[outv];overlay;aresample" \
+       -an        out1.mp4 \
+                  out2.mkv \
+       -map 1:a:0 out3.mkv
+```
+上面的命令会失败，因为色调滤镜输出有一个标签 [outv]，并且尚未映射到任何地方。
+```
+ffmpeg -i A.avi -i B.mp4 -i C.mkv -filter_complex "[1:v]hue=s=0,split=2[outv1][outv2];overlay;aresample" \
+        -map '[outv1]' -an        out1.mp4 \
+                                  out2.mkv \
+        -map '[outv2]' -map 1:a:0 out3.mkv
+```
+来自 B.mp4 的视频流被发送到 hue 滤镜，其输出使用 split 滤镜克隆一次，并对两个输出进行标记。然后，每个副本被映射到第一个和第三个输出文件。
+
+overlay 滤镜需要两个视频输入，使用前两个未使用的视频流。它们是来自 A.avi 和 C.mkv 的流。overlay 输出没有标记，因此无论是否使用 -map 选项，它都会被发送到第一个输出文件 out1.mp4。
+
+aresample 滤镜接收第一个未使用的音频流，即 A.avi 的音频流。由于此滤镜的输出也没有标记，因此它也被映射到第一个输出文件。-an 选项仅用于抑制音频流的自动或手动流选择，而不会抑制从滤镜图发送的输出。这两个映射流都应在 out1.mp4 中的映射流之前排序。
+
+映射到 out2.mkv 的视频、音频和字幕流完全由自动流选择决定。
+
+out3.mkv 由色调滤镜的克隆视频输出和来自 B.mp4 的第一个音频流组成。
