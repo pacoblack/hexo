@@ -1,5 +1,5 @@
 ---
-title: ffmpeg常用命令
+title: ffmpeg流程介绍
 toc: true
 date: 2025-05-27 16:31:52
 tags:
@@ -7,7 +7,7 @@ tags:
 categories:
 - ffmpeg
 ---
-ffmpeg常用命令
+ffmpeg流程介绍
  <!--more-->
  [官方地址](https://ffmpeg.org/ffmpeg.html#Description)
 
