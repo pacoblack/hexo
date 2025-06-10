@@ -11,9 +11,13 @@ Hexo 的各种基础配置
 <!--more-->
 
 # 配置文件介绍
+进入theme目录下载主题
 ```
-～/blog/_config.yml          // 站点配置文件
-
+git clone https://github.com/theme-next/hexo-theme-next themes/next
+```
+修改文件`～/blog/_config.yml` 中，为`theme:next`
+在下面的文件配置主题具体样式
+```
 ~/blog/themes/next/_config.yml  // 主题配置文件
 ```
 
@@ -65,9 +69,6 @@ body {
 基本流程参考 [theme-next-canvas-nest](https://github.com/theme-next/theme-next-canvas-nest)
 
 *step1* 进入 **next** 根目录下
-```
-git clone https://github.com/theme-next/theme-next-canvas-nest source/lib/canvas-nest
-```
 
 *step2* 修改 **next** 主题配置文件 _config.yml
 
